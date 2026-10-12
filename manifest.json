@@ -1,7 +1,7 @@
 {
-  "name": "Mis Gorras",
-  "short_name": "Mis Gorras",
-  "description": "Inventario, ventas y método AGI para mi negocio de gorras",
+  "name": "Richis Caps",
+  "short_name": "Richis Caps",
+  "description": "Inventario, ventas y método AGI de Richis Caps",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
