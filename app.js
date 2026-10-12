@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================
-   RICHIS CAPS - inventario, ventas y método AGI
+   GORV - inventario, ventas y método AGI
    Dos calidades (normal y premium) y tres lugares:
    Bodega, Morelos (M) y Carrillo (C).
    Datos guardados en el navegador (localStorage).
@@ -144,7 +144,7 @@ function table(map, labelFn, limit) {
 function stockTable() {
   const row = t => { const s = S.stock[t];
     return `<tr><td>${TIPO[t]}</td><td>${s.bodega}</td><td>${s.M}</td><td>${s.C}</td><td><b>${tot(t)}</b></td></tr>`; };
-  return `<div class="scroll"><table><tr><th></th><th>Bodega</th><th>Morelos</th><th>Carrillo</th><th>Total</th></tr>${row('normal')}${row('premium')}</table></div>`;
+  return `<div class="scroll"><table><tr><th></th><th>Bodega</th><th class="lM">Morelos</th><th class="lC">Carrillo</th><th>Total</th></tr>${row('normal')}${row('premium')}</table></div>`;
 }
 const locOptions = sel => LOCS.map(l => `<option value="${l}" ${l === sel ? 'selected' : ''}>${LOC[l]}</option>`).join('');
 const tipoOptions = () => TIPOS.map(t => `<option value="${t}">${TIPO[t]}</option>`).join('');
@@ -164,7 +164,7 @@ function resumen() {
     const o = byLoc[s.loc]; o.qty += s.qty; o.total += s.total; o.A += s.A; o.G += s.G; o.I += s.I;
   });
   const locRows = ['M', 'C'].map(l => { const o = byLoc[l];
-    return `<tr><td>${LOC[l]}</td><td>${o.qty}</td><td>${money(o.total)}</td><td>${money(o.A)}</td><td>${money(o.G)}</td><td>${money(o.I)}</td></tr>`; }).join('');
+    return `<tr><td class="l${l}"><b>${LOC[l]}</b></td><td>${o.qty}</td><td>${money(o.total)}</td><td>${money(o.A)}</td><td>${money(o.G)}</td><td>${money(o.I)}</td></tr>`; }).join('');
 
   return `
     ${periodCard('Esta semana', w)}
@@ -186,14 +186,14 @@ function vender() {
   const pr = S.settings.prices, set = pr[S.settings.season];
   const row = t => `
     <div class="row"><div><b>${TIPO[t]}</b>
-      <small>En ${LOC[saleLoc]}: ${S.stock[t][saleLoc]}</small></div>
+      <small>En <span class="l${saleLoc}">${LOC[saleLoc]}</span>: ${S.stock[t][saleLoc]}</small></div>
       <div class="qty"><button onclick="chg('${t}',-1)">−</button><span>${cart[t]}</span><button onclick="chg('${t}',1)">+</button></div>
     </div>`;
   return `
     <h3>¿Dónde vendiste?</h3>
     <div class="seg">
-      <button class="${saleLoc === 'M' ? 'on' : ''}" onclick="setLoc('M')">Morelos</button>
-      <button class="${saleLoc === 'C' ? 'on' : ''}" onclick="setLoc('C')">Carrillo</button>
+      <button class="bM ${saleLoc === 'M' ? 'on' : ''}" onclick="setLoc('M')">Morelos</button>
+      <button class="bC ${saleLoc === 'C' ? 'on' : ''}" onclick="setLoc('C')">Carrillo</button>
     </div>
     <div class="seg">
       <button class="${S.settings.season === 'normal' ? 'on' : ''}" onclick="setSeason('normal')">Precio normal</button>
@@ -212,7 +212,7 @@ function vender() {
 
 function inventario() {
   const fix = t => `<h3 style="margin-top:12px">${TIPO[t]}</h3><div class="grid3">
-    ${LOCS.map(l => `<div><label>${LOC[l]}</label><input id="c_${t}_${l}" type="number" inputmode="numeric" value="${S.stock[t][l]}"></div>`).join('')}</div>`;
+    ${LOCS.map(l => `<div><label class="l${l}">${LOC[l]}</label><input id="c_${t}_${l}" type="number" inputmode="numeric" value="${S.stock[t][l]}"></div>`).join('')}</div>`;
   return `
     <div class="card"><h3>Existencias</h3>${stockTable()}
       <div class="sub" style="margin-top:8px">Costo promedio: Normal ${money(S.costs.normal)} · Premium ${money(S.costs.premium)}</div></div>
@@ -250,7 +250,7 @@ function historial() {
     if (s.pm) parts.push(`${s.pm} premium`);
     return `
     <div class="card"><div class="row" style="border:0;padding:0">
-      <div><b>${money(s.total)}</b><small>${dateLabel(s.date)} · ${LOC[s.loc] || ''}</small></div>
+      <div><b>${money(s.total)}</b><small>${dateLabel(s.date)} · <span class="l${s.loc}">${LOC[s.loc] || ''}</span></small></div>
       <button class="ghost danger" onclick="delSale('${s.id}')">Borrar</button></div>
       <div class="sub">${parts.join(' y ')}</div>
       ${agiBoxes(s)}${agiBar(s)}</div>`;
@@ -364,7 +364,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `richiscaps-respaldo-${todayStr()}.json`;
+  a.download = `gorv-respaldo-${todayStr()}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

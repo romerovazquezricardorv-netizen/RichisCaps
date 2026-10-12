@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra sin internet.
 // Si cambias archivos, sube el número de versión.
-const CACHE = 'gorras-v3';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'gorras-v5';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
