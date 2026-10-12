@@ -74,11 +74,13 @@ const num = id => parseFloat($(id).value) || 0;
 const tot = t => S.stock[t].bodega + S.stock[t].M + S.stock[t].C;
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, act) {
   const t = $('#toast');
-  t.textContent = msg; t.classList.add('show');
+  t.innerHTML = esc(msg) + (act ? ` <button onclick="${act.fn}">${act.label}</button>` : '');
+  t.style.pointerEvents = act ? 'auto' : 'none';
+  t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => t.classList.remove('show'), act ? 6000 : 2400);
 }
 
 /* ---------- cálculo de venta + AGI ---------- */
@@ -104,7 +106,9 @@ function agg(keyFn, filterFn) {
 }
 
 /* ---------- navegación ---------- */
-let tab = 'resumen', cart = { normal: 0, premium: 0 }, saleLoc = 'M', saleDate = todayStr();
+let tab = 'resumen', saleLoc = 'M', saleDate = null;   // saleDate null = hoy
+const curDate = () => saleDate || todayStr();
+let lastTap = { k: '', t: 0 };
 
 function go(t) { tab = t; render(); window.scrollTo(0, 0); }
 function render() {
@@ -113,6 +117,11 @@ function render() {
   b.textContent = S.settings.season === 'alta' ? 'Temporada alta' : 'Temporada normal';
   b.className = 'badge ' + (S.settings.season === 'alta' ? 'alta' : '');
   $('#view').innerHTML = VIEWS[tab]();
+  updateNet();
+}
+function updateNet() {
+  const n = $('#netBadge');
+  if (n) n.hidden = navigator.onLine !== false;
 }
 
 /* ---------- componentes ---------- */
@@ -181,33 +190,52 @@ function resumen() {
     <h2>Por mes</h2><div class="card">${table(mo, monthLabel, 12)}</div>`;
 }
 
+function saleName(s) {
+  const parts = [];
+  if (s.n === 2) parts.push('Promo 2 normales');
+  else if (s.n) parts.push(`${s.n} normal${s.n === 1 ? '' : 'es'}`);
+  if (s.pm) parts.push(`${s.pm} premium`);
+  return parts.join(' y ');
+}
+
 function vender() {
-  const c = calc(cart.normal, cart.premium);
-  const pr = S.settings.prices, set = pr[S.settings.season];
-  const row = t => `
-    <div class="row"><div><b>${TIPO[t]}</b>
-      <small>En <span class="l${saleLoc}">${LOC[saleLoc]}</span>: ${S.stock[t][saleLoc]}</small></div>
-      <div class="qty"><button onclick="chg('${t}',-1)">−</button><span>${cart[t]}</span><button onclick="chg('${t}',1)">+</button></div>
-    </div>`;
+  const st = S.settings, pr = st.prices, set = pr[st.season];
+  const day = S.sales.filter(s => s.date === curDate() && s.loc === saleLoc).sort((a, b) => b.id.localeCompare(a.id));
+  const dayTot = day.reduce((a, s) => ({ qty: a.qty + s.qty, total: a.total + s.total }), { qty: 0, total: 0 });
+
+  const btn = (cls, title, n, pm) => {
+    const c = calc(n, pm), have = S.stock[pm ? 'premium' : 'normal'][saleLoc], dis = have < n + pm;
+    return `<button class="sale ${cls}" ${dis ? 'disabled' : ''} onclick="venta(${n},${pm})">
+      <span class="t">${title}</span><span class="p">${money(c.total)}</span>
+      <span class="m">${dis ? 'Sin existencias en ' + LOC[saleLoc] : 'Quedan ' + have + ' en ' + LOC[saleLoc]}<br>Ahorro ${money(c.A)} · Ganancia ${money(c.G)} · Inversión ${money(c.I)}</span>
+    </button>`;
+  };
+  const list = day.length ? day.map(s => `
+    <div class="row"><div><b>${money(s.total)}</b><small>${saleName(s)}</small></div>
+      <button class="ghost danger" onclick="delSale('${s.id}')">Borrar</button></div>`).join('')
+    : '<p class="empty">Todavía no hay ventas en este local.</p>';
+
   return `
-    <h3>¿Dónde vendiste?</h3>
+    <h3>¿Dónde vendes?</h3>
     <div class="seg">
       <button class="bM ${saleLoc === 'M' ? 'on' : ''}" onclick="setLoc('M')">Morelos</button>
       <button class="bC ${saleLoc === 'C' ? 'on' : ''}" onclick="setLoc('C')">Carrillo</button>
     </div>
     <div class="seg">
-      <button class="${S.settings.season === 'normal' ? 'on' : ''}" onclick="setSeason('normal')">Precio normal</button>
-      <button class="${S.settings.season === 'alta' ? 'on' : ''}" onclick="setSeason('alta')">Temporada alta</button>
+      <button class="${st.season === 'normal' ? 'on' : ''}" onclick="setSeason('normal')">Precio normal</button>
+      <button class="${st.season === 'alta' ? 'on' : ''}" onclick="setSeason('alta')">Temporada alta</button>
     </div>
-    <div class="sub">Normal: ${money(set.one)} una o 2 por ${money(set.two)} · Premium: ${money(pr.premium)}</div>
-    <div class="card" style="margin-top:10px">${row('normal')}${row('premium')}</div>
-    <div class="card"><h3>Venta actual · ${LOC[saleLoc]}</h3>
-      <div class="big">${money(c.total)}</div><div class="sub">${c.qty} gorra${c.qty === 1 ? '' : 's'}</div>
-      ${agiBoxes(c)}${agiBar(c)}
-      <label>Fecha de la venta</label>
-      <input type="date" value="${saleDate}" onchange="saleDate=this.value||todayStr()">
-      <button class="primary" onclick="registrar()">Registrar venta</button>
-    </div>`;
+    ${saleDate ? `<div class="card warn"><b>Registrando ventas del ${dateLabel(saleDate)}</b>
+      <div class="btns"><button class="ghost" onclick="setDate('')">Volver a hoy</button></div></div>` : ''}
+    ${btn('one', `1 gorra normal`, 1, 0)}
+    ${btn('two', `Promo 2 gorras normales`, 2, 0)}
+    ${btn('prem', 'Gorra premium', 0, 1)}
+    <div class="card"><h3>${saleDate ? dateLabel(saleDate) : 'Hoy'} en <span class="l${saleLoc}">${LOC[saleLoc]}</span></h3>
+      <div class="big">${money(dayTot.total)}</div>
+      <div class="sub">${dayTot.qty} gorra${dayTot.qty === 1 ? '' : 's'} vendida${dayTot.qty === 1 ? '' : 's'}</div>
+      <div style="margin-top:8px">${list}</div></div>
+    <div class="card"><label style="margin-top:0">¿Vas a registrar ventas de otro día?</label>
+      <input type="date" value="${curDate()}" onchange="setDate(this.value)"></div>`;
 }
 
 function inventario() {
@@ -245,14 +273,11 @@ function historial() {
   const sales = [...S.sales].sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
   if (!sales.length) return '<p class="empty">Aún no hay ventas.</p>';
   return sales.slice(0, 100).map(s => {
-    const parts = [];
-    if (s.n) parts.push(`${s.n} normal${s.n === 1 ? '' : 'es'}`);
-    if (s.pm) parts.push(`${s.pm} premium`);
     return `
     <div class="card"><div class="row" style="border:0;padding:0">
       <div><b>${money(s.total)}</b><small>${dateLabel(s.date)} · <span class="l${s.loc}">${LOC[s.loc] || ''}</span></small></div>
       <button class="ghost danger" onclick="delSale('${s.id}')">Borrar</button></div>
-      <div class="sub">${parts.join(' y ')}</div>
+      <div class="sub">${saleName(s)}</div>
       ${agiBoxes(s)}${agiBar(s)}</div>`;
   }).join('');
 }
@@ -290,35 +315,35 @@ const VIEWS = { resumen, vender, inventario, historial, ajustes };
 
 /* ---------- acciones: venta ---------- */
 function setSeason(v) { S.settings.season = v; save(); render(); }
-function setLoc(l) {
-  saleLoc = l;
-  TIPOS.forEach(t => { cart[t] = Math.min(cart[t], S.stock[t][l]); });
-  render();
-}
-function chg(t, d) {
-  cart[t] = Math.max(0, Math.min(S.stock[t][saleLoc], cart[t] + d));
-  render();
+function setLoc(l) { saleLoc = l; render(); }
+function setDate(v) { saleDate = (!v || v === todayStr()) ? null : v; render(); }
+
+function venta(n, pm) {                       // n = normales, pm = premium
+  const key = `${n}-${pm}-${saleLoc}`, now = Date.now();
+  if (lastTap.k === key && now - lastTap.t < 450) return;   // evita doble toque accidental
+  lastTap = { k: key, t: now };
+  const t = pm ? 'premium' : 'normal';
+  if (S.stock[t][saleLoc] < n + pm) return toast(`No hay existencias de ${TIPO[t].toLowerCase()} en ${LOC[saleLoc]}`);
+  const c = calc(n, pm), id = uid();
+  S.sales.push({ id, date: curDate(), loc: saleLoc, n, pm, qty: c.qty, total: c.total,
+    A: c.A, G: c.G, I: c.I, cost: c.cost, season: S.settings.season });
+  S.stock[t][saleLoc] -= n + pm;
+  save(); render();
+  toast(`Venta guardada: ${money(c.total)} · ${LOC[saleLoc]}`, { label: 'Deshacer', fn: `undoSale('${id}')` });
 }
 
-function registrar() {
-  if (!cart.normal && !cart.premium) return toast('Agrega gorras a la venta');
-  const c = calc(cart.normal, cart.premium);
-  S.sales.push({
-    id: uid(), date: saleDate || todayStr(), loc: saleLoc, n: cart.normal, pm: cart.premium,
-    qty: c.qty, total: c.total, A: c.A, G: c.G, I: c.I, cost: c.cost, season: S.settings.season
-  });
-  S.stock.normal[saleLoc] -= cart.normal;
-  S.stock.premium[saleLoc] -= cart.premium;
-  cart = { normal: 0, premium: 0 }; saleDate = todayStr();
-  save(); toast(`Venta guardada: ${money(c.total)}`); render();
-}
-
-function delSale(id) {
+function removeSale(id) {
   const s = S.sales.find(x => x.id === id);
-  if (!s || !confirm('¿Borrar esta venta? Las gorras regresan al inventario del local.')) return;
+  if (!s) return false;
   if (S.stock.normal[s.loc] !== undefined) { S.stock.normal[s.loc] += s.n; S.stock.premium[s.loc] += s.pm; }
   S.sales = S.sales.filter(x => x.id !== id);
-  save(); render();
+  save();
+  return true;
+}
+function undoSale(id) { if (removeSale(id)) { toast('Venta deshecha'); render(); } }
+function delSale(id) {
+  if (!confirm('¿Borrar esta venta? Las gorras regresan al inventario del local.')) return;
+  removeSale(id); render();
 }
 
 /* ---------- acciones: inventario ---------- */
@@ -344,7 +369,6 @@ function comprar() {
 
 function corregir() {
   TIPOS.forEach(t => LOCS.forEach(l => { S.stock[t][l] = Math.max(0, Math.floor(num(`#c_${t}_${l}`))); }));
-  TIPOS.forEach(t => { cart[t] = Math.min(cart[t], S.stock[t][saleLoc]); });
   save(); toast('Conteo guardado'); render();
 }
 
@@ -377,7 +401,7 @@ $('#importFile').addEventListener('change', e => {
       const d = JSON.parse(r.result);
       if (!d.stock || !d.sales) throw 0;
       if (!confirm('Esto reemplaza los datos actuales. ¿Continuar?')) return;
-      S = merge(clone(DEFAULTS), d); cart = { normal: 0, premium: 0 };
+      S = merge(clone(DEFAULTS), d);
       save(); toast('Respaldo restaurado'); render();
     } catch (err) { toast('Archivo no válido'); }
   };
@@ -387,11 +411,21 @@ $('#importFile').addEventListener('change', e => {
 function resetAll() {
   if (!confirm('¿Borrar TODOS los datos de la app?')) return;
   if (!confirm('Esta acción no se puede deshacer. ¿Seguro?')) return;
-  S = clone(DEFAULTS); cart = { normal: 0, premium: 0 }; save(); render();
+  S = clone(DEFAULTS); save(); render();
 }
 
-/* ---------- arranque ---------- */
+/* ---------- arranque / modo sin internet ---------- */
+window.addEventListener('online', updateNet);
+window.addEventListener('offline', updateNet);
 render();
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.ready.then(() => {
+      if (!localStorage.getItem('gorv_offline_ok')) {
+        localStorage.setItem('gorv_offline_ok', '1');
+        toast('Lista para usar sin internet');
+      }
+    });
+  });
 }
