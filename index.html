@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mis Gorras</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1b2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis Gorras">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Mis Gorras</h1>
+  <span id="seasonBadge" class="badge"></span>
+</header>
+<main id="view"></main>
+<nav>
+  <button data-t="resumen" onclick="go('resumen')">Resumen</button>
+  <button data-t="vender" onclick="go('vender')">Vender</button>
+  <button data-t="inventario" onclick="go('inventario')">Inventario</button>
+  <button data-t="historial" onclick="go('historial')">Historial</button>
+  <button data-t="ajustes" onclick="go('ajustes')">Ajustes</button>
+</nav>
+<div id="toast"></div>
+<input type="file" id="importFile" accept="application/json" hidden>
+<script src="app.js"></script>
+</body>
+</html>
