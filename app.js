@@ -14,6 +14,8 @@ const LOC = { bodega: 'Bodega', M: 'Morelos', C: 'Carrillo' };
 const TIPO = { normal: 'Normal', premium: 'Premium' };
 const TIPOS = ['normal', 'premium'];
 const LOCS = ['bodega', 'M', 'C'];
+const KINDS = ['one', 'two', 'prem'];          // tipos de venta: gorra $89 · promo 2 por $170 · premium $185
+const KEYK = { n1: 'one', n2: 'two', p: 'prem' };   // apartado de la pantalla Hoy -> tipo de venta
 
 const DEFAULTS = {
   settings: {
@@ -35,7 +37,7 @@ const DEFAULTS = {
     premium: { bodega: 0, M: 0, C: 0 }
   },
   costs: { normal: 28, premium: 60 },   // costo promedio por gorra
-  sales: [],   // {id,date,loc,n,pm,qty,total,A,G,I,cost,season}
+  sales: [],   // {id,tk,date,loc,kind,k,n,pm,qty,total,A,G,I,cost,season}  kind: one|two|prem · k: cuántas de ese tipo
   buys: [],    // {id,date,type,qty,unitCost,prevCost}
   meta: { lastBackup: null }
 };
@@ -48,10 +50,36 @@ function merge(base, over) {
   for (const k in (over || {})) if (!(k in out)) out[k] = over[k];
   return out;
 }
+// Una "línea" de venta: k ventas del mismo tipo. Recibe los datos (d) para poder usarse al cargar.
+function lineOf(d, kind, k, season) {
+  const pr = d.settings.prices, ag = d.settings.agi, set = pr[season] || pr.normal;
+  const n = kind === 'one' ? k : kind === 'two' ? 2 * k : 0, pm = kind === 'prem' ? k : 0;
+  const total = kind === 'one' ? k * set.one : kind === 'two' ? k * set.two : k * pr.premium;
+  const A = n * ag.normal.A + pm * ag.premium.A, I = n * ag.normal.I + pm * ag.premium.I;
+  return { kind, k, n, pm, qty: n + pm, total, A, G: total - A - I, I, cost: n * d.costs.normal + pm * d.costs.premium };
+}
+
+// Las ventas guardadas por versiones anteriores eran un solo registro con "n" normales y "pm" premium.
+// Aquí se separan en una línea por tipo (gorra $89, promo $170, premium $185) sin cambiar total ni inventario.
+function upgrade(d) {
+  if (!d.sales.some(s => !s.kind)) return d;
+  d.sales = d.sales.flatMap(s => {
+    if (s.kind) return [s];
+    const n = s.n || 0, pm = s.pm || 0, season = s.season || 'normal';
+    const parts = [['one', n % 2], ['two', Math.floor(n / 2)], ['prem', pm]].filter(p => p[1] > 0);
+    if (!parts.length) return [s];
+    const lines = parts.map(([kind, k]) => lineOf(d, kind, k, season));
+    const diff = (s.total || 0) - lines.reduce((a, l) => a + l.total, 0);   // por si cambiaste precios después
+    lines[0].total += diff; lines[0].G += diff;
+    return lines.map((l, i) => ({ ...l, id: s.id + (i ? 'abc'[i] : ''), tk: s.id, date: s.date, loc: s.loc, season }));
+  });
+  return d;
+}
+
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY));
-    if (raw) return merge(clone(DEFAULTS), raw);
+    if (raw) return upgrade(merge(clone(DEFAULTS), raw));
   } catch (e) {}
   return clone(DEFAULTS);
 }
@@ -71,12 +99,14 @@ const pad = n => String(n).padStart(2, '0');
 const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const todayStr = () => fmt(new Date());
 const parseD = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
-const weekKey = s => { const d = parseD(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return fmt(d); }; // semana inicia lunes
 const monthKey = s => s.slice(0, 7);
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
-const weekLabel = k => { const a = parseD(k), b = new Date(a); b.setDate(b.getDate() + 6); return `${a.getDate()} ${MES[a.getMonth()]} al ${b.getDate()} ${MES[b.getMonth()]}`; };
 const monthLabel = k => { const [y, m] = k.split('-'); return `${MES[m - 1]} ${y}`; };
+const monthLong = k => { const [y, m] = k.split('-'); return `${MESL[m - 1]} ${y}`; };
+const addMonth = (k, d) => { const [y, m] = k.split('-').map(Number), t = new Date(y, m - 1 + d, 1); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}`; };
+const short = n => n >= 1000 ? '$' + (Math.round(n / 100) / 10).toLocaleString('es-MX') + 'k' : '$' + Math.round(n);
 const dateLabel = s => { const d = parseD(s); return `${d.getDate()} ${MES[d.getMonth()]} ${d.getFullYear()}`; };
 const longDate = s => { const d = parseD(s); return `${DIAS[d.getDay()]} ${d.getDate()} ${MES[d.getMonth()]}`; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -95,17 +125,11 @@ function toast(msg, act) {
 }
 
 /* ---------- cálculo de venta + AGI ---------- */
-function calc(n, pm) {              // n = normales, pm = premium
-  const st = S.settings, pr = st.prices, ag = st.agi;
-  const set = pr[st.season] || pr.normal;
-  // normales: de 2 en 2 al precio de pareja, la sobrante al precio de una
-  const total = Math.floor(n / 2) * set.two + (n % 2) * set.one + pm * pr.premium;
-  const A = n * ag.normal.A + pm * ag.premium.A;
-  const I = n * ag.normal.I + pm * ag.premium.I;
-  return { qty: n + pm, total, A, I, G: total - A - I, cost: n * S.costs.normal + pm * S.costs.premium };
-}
+// Cada tipo de venta se calcula aparte (ver lineOf): gorra $89, promo 2 por $170 y premium $185.
+// Ahorro e Inversión son fijos por gorra; la Ganancia es lo que sobra del precio.
+const line = (kind, k) => lineOf(S, kind, k, S.settings.season);
 
-const Z = () => ({ qty: 0, total: 0, A: 0, G: 0, I: 0, cost: 0 });
+const Z = ()=> ({ qty: 0, total: 0, A: 0, G: 0, I: 0, cost: 0 });
 function sum(list) {
   return list.reduce((a, s) => {
     a.qty += s.qty; a.total += s.total; a.A += s.A; a.G += s.G; a.I += s.I; a.cost += s.cost || 0;
@@ -124,8 +148,8 @@ function agg(keyFn) {
 /* ---------- estado de pantalla ---------- */
 const TITLES = { hoy: 'Hoy', panel: 'Panel', stock: 'Inventario', ventas: 'Ventas', ajustes: 'Ajustes' };
 let tab = 'hoy', saleLoc = 'M', saleDate = null;     // saleDate null = hoy
-let cartN = 0, cartP = 0;                            // ticket en curso
-let range = 'week', per = 'week';                    // panel
+let cart1 = 0, cart2 = 0, cartP = 0;                 // ticket en curso: gorras $89, promos de 2, premium
+let pmo = null;                                      // mes que muestra el panel (null = el mes actual)
 let hist = { loc: 'all', month: 'all', limit: 30 };  // ventas
 const curDate = () => saleDate || todayStr();
 
@@ -179,16 +203,29 @@ const tipoOptions = () => TIPOS.map(t => `<option value="${t}">${TIPO[t]}</optio
 const acc = (title, body) => `<details class="acc"><summary>${title}</summary><div class="accb">${body}</div></details>`;
 
 function saleName(s) {
-  const parts = [];
-  if (s.n === 2) parts.push('Promo 2 normales');
-  else if (s.n) parts.push(`${s.n} ${plural(s.n, 'normal', 'normales')}`);
-  if (s.pm) parts.push(`${s.pm} premium`);
-  return parts.join(' y ');
+  const u = s.k ? s.total / s.k : s.total, x = s.k > 1 ? s.k + ' × ' : '';
+  if (s.kind === 'two') return `${x}Promo 2 por ${money(u)}`;
+  if (s.kind === 'prem') return `${x}Premium ${money(u)}`;
+  return `${x}Gorra ${money(u)}`;
 }
 
 /* =========================================================
-   PANTALLA: HOY  (vender con ticket)
+   PANTALLA: HOY  (registrar ventas con ticket)
+   Tres apartados separados: gorra $89, promo 2 por $170 y premium $185.
    ========================================================= */
+function clampCart() {                      // el ticket nunca pasa de lo que hay en el local
+  const hN = S.stock.normal[saleLoc], hP = S.stock.premium[saleLoc];
+  cart1 = Math.min(cart1, hN);
+  cart2 = Math.min(cart2, Math.floor((hN - cart1) / 2));
+  cartP = Math.min(cartP, hP);
+}
+const room = key => {                       // cuántas más se pueden agregar de ese apartado
+  const left = S.stock.normal[saleLoc] - cart1 - 2 * cart2;
+  return key === 'n1' ? left : key === 'n2' ? Math.floor(left / 2) : S.stock.premium[saleLoc] - cartP;
+};
+const cartLines = () => [['one', cart1], ['two', cart2], ['prem', cartP]]
+  .filter(x => x[1] > 0).map(([kd, k]) => line(kd, k));
+
 function hoy() {
   const st = S.settings, pr = st.prices, set = pr[st.season];
   const d = curDate();
@@ -197,17 +234,18 @@ function hoy() {
   const mine = daySales.filter(s => s.loc === saleLoc).sort((a, b) => b.id.localeCompare(a.id));
   const other = saleLoc === 'M' ? 'C' : 'M';
   const haveN = S.stock.normal[saleLoc], haveP = S.stock.premium[saleLoc];
-  cartN = Math.min(cartN, haveN); cartP = Math.min(cartP, haveP);
+  clampCart();
 
-  const prod = (key, name, desc, have, n) => `
+  const prod = (key, name, desc, stockTxt, out, n) => `
     <div class="prod ${key}">
       <div class="pi"><b>${name}</b><span>${desc}</span>
-        <small class="${have < 1 ? 'out' : ''}">${have < 1 ? 'Sin existencias en ' + LOC[saleLoc] : 'Quedan ' + have + ' en ' + LOC[saleLoc]}</small></div>
+        <small class="${out ? 'out' : ''}">${stockTxt}</small></div>
       <div class="step">
         <button aria-label="Quitar ${name}" onclick="cart('${key}',-1)" ${n < 1 ? 'disabled' : ''}>−</button>
         <b class="num">${n}</b>
-        <button class="plus" aria-label="Agregar ${name}" onclick="cart('${key}',1)" ${n >= have ? 'disabled' : ''}>+</button>
+        <button class="plus" aria-label="Agregar ${name}" onclick="cart('${key}',1)" ${room(key) < 1 ? 'disabled' : ''}>+</button>
       </div>
+      <div class="pg"><span>Reparto de cada una</span>${agiLine(line(KEYK[key], 1))}</div>
     </div>`;
 
   const rows = mine.length ? mine.map(s => `
@@ -222,7 +260,7 @@ function hoy() {
         <button class="${saleLoc === 'M' ? 'on' : ''}" onclick="setLoc('M')">Morelos</button>
         <button class="${saleLoc === 'C' ? 'on' : ''}" onclick="setLoc('C')">Carrillo</button>
       </div>
-      <p class="hl">${saleDate ? 'Ventas del ' + dateLabel(saleDate) : 'Vendido hoy'}</p>
+      <p class="hl">${saleDate ? 'Ventas del ' + dateLabel(saleDate) : 'Registrado hoy'}</p>
       <div class="big num">${money(dayAll.total)}</div>
       <p class="hs">${dayAll.qty} ${plural(dayAll.qty, 'gorra', 'gorras')} · aquí ${money(sum(mine).total)}, en ${LOC[other]} ${money(sum(daySales.filter(s => s.loc === other)).total)}</p>
     </section>
@@ -238,12 +276,17 @@ function hoy() {
           <button class="${st.season === 'alta' ? 'on' : ''}" onclick="setSeason('alta')">Temporada alta</button>
         </div>
       </div>
-      ${prod('n', 'Gorra normal', `${money(set.one)} c/u · 2 por ${money(set.two)}`, haveN, cartN)}
-      ${prod('p', 'Gorra premium', `${money(pr.premium)} c/u`, haveP, cartP)}
+      <h2 class="ask">¿Qué se vendió en ${LOC[saleLoc]}?</h2>
+      ${prod('n1', `Gorra ${money(set.one)}`, '1 gorra normal',
+        haveN < 1 ? 'Sin existencias en ' + LOC[saleLoc] : `Quedan ${haveN} normales en ${LOC[saleLoc]}`, haveN < 1, cart1)}
+      ${prod('n2', `Promo ${money(set.two)}`, `2 gorras normales · ahorras ${money(2 * set.one - set.two)}`,
+        haveN < 2 ? 'Sin existencias en ' + LOC[saleLoc] : `Alcanza para ${Math.floor(haveN / 2)} ${plural(Math.floor(haveN / 2), 'promo', 'promos')}`, haveN < 2, cart2)}
+      ${prod('p', `Premium ${money(pr.premium)}`, '1 gorra premium',
+        haveP < 1 ? 'Sin existencias en ' + LOC[saleLoc] : `Quedan ${haveP} en ${LOC[saleLoc]}`, haveP < 1, cartP)}
     </section>
 
     <section class="list">
-      <h2>Ventas en ${LOC[saleLoc]} ${saleDate ? '' : 'hoy'}</h2>
+      <h2>Registrado ${saleDate ? '' : 'hoy '}en ${LOC[saleLoc]}</h2>
       ${rows}
     </section>
 
@@ -252,41 +295,78 @@ function hoy() {
 
 function renderTicket() {
   const t = $('#ticket');
-  const n = cartN + cartP;
-  document.body.classList.toggle('tk', tab === 'hoy' && n > 0);
-  if (tab !== 'hoy' || n === 0) { t.hidden = true; t.innerHTML = ''; return; }
-  const c = calc(cartN, cartP);
+  const caps = cart1 + 2 * cart2 + cartP;
+  document.body.classList.toggle('tk', tab === 'hoy' && caps > 0);
+  if (tab !== 'hoy' || caps === 0) { t.hidden = true; t.innerHTML = ''; return; }
+  const set = S.settings.prices[S.settings.season];
+  const total = cartLines().reduce((a, l) => a + l.total, 0);
+  const parts = [];
+  if (cart1) parts.push(`${cart1} × ${money(set.one)}`);
+  if (cart2) parts.push(`${cart2} ${plural(cart2, 'promo', 'promos')}`);
+  if (cartP) parts.push(`${cartP} premium`);
   t.hidden = false;
   t.className = saleLoc;
-  t.innerHTML = `<div class="tkinfo"><small>${n} ${plural(n, 'gorra', 'gorras')} para ${LOC[saleLoc]}${cartN >= 2 ? ' · promo' : ''}</small>
-      <b class="num">${money(c.total)}</b></div>
+  t.innerHTML = `<div class="tkd">${LOC[saleLoc]} · ${parts.join(' + ')}</div>
+    <div class="tkinfo"><b class="num">${money(total)}</b></div>
     <button class="vac" aria-label="Vaciar ticket" onclick="clearCart()">Vaciar</button>
     <button class="cobrar" onclick="cobrar()">Cobrar</button>`;
 }
 
 /* =========================================================
-   PANTALLA: PANEL
+   PANTALLA: PANEL  (solo meses)
+   Un mes a la vez, con el AGI de cada tipo de venta,
+   en total y por local (Morelos y Carrillo).
    ========================================================= */
-function inRange(s) {
-  const t = todayStr();
-  if (range === 'week') return weekKey(s.date) === weekKey(t);
-  if (range === 'month') return monthKey(s.date) === monthKey(t);
-  return true;
+const curMo = () => pmo || monthKey(todayStr());
+
+const chips = o => `<div class="chips">
+    <div class="cA"><small>Ahorro</small><b class="num">${money(o.A)}</b></div>
+    <div class="cG"><small>Ganancia</small><b class="num">${money(o.G)}</b></div>
+    <div class="cI"><small>Inversión</small><b class="num">${money(o.I)}</b></div></div>`;
+
+function kindName(kind, ks) {               // "Gorra $89", "Promo 2 gorras $170", "Premium $185"
+  const pr = S.settings.prices, set = pr[S.settings.season];
+  const cur = kind === 'one' ? set.one : kind === 'two' ? set.two : pr.premium;
+  const us = ks.length ? [...new Set(ks.map(s => s.total / s.k))].sort((a, b) => a - b) : [cur];
+  const price = us.length > 1 ? `${money(us[0])}–${money(us[us.length - 1])}` : money(us[0]);
+  return { one: 'Gorra', two: 'Promo 2 gorras', prem: 'Premium' }[kind] + ' ' + price;
 }
-function chart7() {
-  const days = [];
-  for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(fmt(d)); }
-  const vals = days.map(k => S.sales.filter(s => s.date === k).reduce((a, s) => a + s.total, 0));
-  const max = Math.max(...vals, 1), D = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-  return `<div class="chart">` + days.map((k, i) =>
-    `<div class="col ${i === 6 ? 'today' : ''}">${vals[i] ? `<b>${money(vals[i])}</b>` : ''}` +
-    `<i style="height:${vals[i] / max * 78}%"></i><small>${D[parseD(k).getDay()]}</small></div>`).join('') + `</div>`;
+
+function kindBlock(kind, list, sc) {
+  const ks = list.filter(s => s.kind === kind), o = sum(ks), units = ks.reduce((a, s) => a + (s.k || 0), 0);
+  const sub = !units ? 'Sin ventas' : kind === 'two'
+    ? `${units} ${plural(units, 'promo', 'promos')} · ${o.qty} gorras`
+    : `${units} ${plural(units, 'vendida', 'vendidas')}`;
+  return `<div class="kind ${units ? '' : 'zero'}" data-scope="${sc}" data-kind="${kind}">
+    <div class="kh"><div><b>${kindName(kind, ks)}</b><small>${sub}</small></div><span class="amt num">${money(o.total)}</span></div>
+    ${chips(o)}</div>`;
+}
+
+function scope(sc, title, list, withTotals) {
+  const o = sum(list);
+  return `<section class="list scope" data-scope="${sc}">
+    <div class="sch"><h2 class="${sc === 'all' ? '' : 'l' + sc}">${title}</h2><span class="amt num">${money(o.total)}</span></div>
+    <p class="scs">${o.qty} ${plural(o.qty, 'gorra', 'gorras')} · margen ${money(o.total - o.cost)}</p>
+    ${withTotals ? chips(o) : ''}
+    ${KINDS.map(k => kindBlock(k, list, sc)).join('')}
+  </section>`;
+}
+
+function chartMonths(sel) {                 // últimos 6 meses; el elegido va en negro
+  const now = monthKey(todayStr()), months = [];
+  for (let i = 5; i >= 0; i--) months.push(addMonth(now, -i));
+  const map = agg(monthKey), vals = months.map(k => (map[k] || Z()).total);
+  const max = Math.max(...vals, 1);
+  return `<div class="chart">` + months.map((k, i) =>
+    `<button class="col ${k === sel ? 'sel' : ''}" onclick="setMonth('${k}')" aria-label="${monthLong(k)}: ${money(vals[i])}">` +
+    `${vals[i] ? `<b>${short(vals[i])}</b>` : ''}<i style="height:${vals[i] / max * 78}%"></i>` +
+    `<small>${MES[+k.slice(5) - 1]}</small></button>`).join('') + `</div>`;
 }
 
 function panel() {
-  const today = todayStr();
-  const list = S.sales.filter(inRange), o = sum(list);
-  const label = range === 'week' ? 'Esta semana, ' + weekLabel(weekKey(today)) : range === 'month' ? 'Este mes, ' + monthLabel(monthKey(today)) : 'Desde que empezaste';
+  const now = monthKey(todayStr()), mo = curMo();
+  const firstSale = S.sales.reduce((m, s) => monthKey(s.date) < m ? monthKey(s.date) : m, now);
+  const list = S.sales.filter(s => monthKey(s.date) === mo), o = sum(list);
   const low = TIPOS.filter(t => tot(t) <= S.settings.low);
 
   const lb = S.meta.lastBackup;
@@ -298,29 +378,26 @@ function panel() {
     ? `<div class="alert"><span><b>Poco inventario:</b> ${low.map(t => `${TIPO[t]} (${tot(t)})`).join(', ')}.</span>
         <button class="ghost" onclick="go('stock')">Ver</button></div>` : '';
 
-  const loc = l => { const t = sum(list.filter(s => s.loc === l));
-    return `<div class="lrow"><div class="lt"><b class="l${l}">${LOC[l]}</b><span class="num">${money(t.total)}</span></div>
-      <div class="meter"><i class="m${l}" style="width:${t.total / Math.max(o.total, 1) * 100}%"></i></div>
-      <small>${t.qty} ${plural(t.qty, 'gorra', 'gorras')} · ganancia ${money(t.G)}</small></div>`; };
-
   const mp = o.total - o.cost;
-  const keyFn = per === 'week' ? weekKey : monthKey, lab = per === 'week' ? weekLabel : monthLabel;
-  const map = agg(keyFn), keys = Object.keys(map).sort().reverse().slice(0, per === 'week' ? 8 : 12);
-  const periods = keys.length ? keys.map(k => { const p = map[k];
-    return `<div class="srow"><div><b>${lab(k)}</b><small>${p.qty} ${plural(p.qty, 'gorra', 'gorras')} · ${agiLine(p)}</small></div><span class="amt num">${money(p.total)}</span></div>`;
-  }).join('') : '<p class="empty">Cuando registres ventas, aquí verás cada periodo.</p>';
+  const map = agg(monthKey), keys = Object.keys(map).sort().reverse().slice(0, 24);
+  const months = keys.length ? keys.map(k => { const p = map[k];
+    return `<button class="srow mrow ${k === mo ? 'sel' : ''}" onclick="setMonth('${k}')">
+      <div><b>${monthLong(k)}</b><small>${p.qty} ${plural(p.qty, 'gorra', 'gorras')} · ${agiLine(p)}</small></div>
+      <span class="amt num">${money(p.total)}</span></button>`;
+  }).join('') : '<p class="empty">Cuando registres ventas, aquí verás cada mes.</p>';
 
   return `
     ${backupWarn}${lowWarn}
-    <div class="pills wide">
-      <button class="${range === 'week' ? 'on' : ''}" onclick="setRange('week')">Semana</button>
-      <button class="${range === 'month' ? 'on' : ''}" onclick="setRange('month')">Mes</button>
-      <button class="${range === 'all' ? 'on' : ''}" onclick="setRange('all')">Todo</button>
+    <div class="monthnav">
+      <button class="mn" aria-label="Mes anterior" onclick="shiftMonth(-1)" ${mo <= firstSale ? 'disabled' : ''}>‹</button>
+      <div class="mt"><b id="monthName">${monthLong(mo)}</b>
+        ${mo === now ? '<small>Mes actual</small>' : `<button class="link" onclick="setMonth('${now}')">Ir al mes actual</button>`}</div>
+      <button class="mn" aria-label="Mes siguiente" onclick="shiftMonth(1)" ${mo >= now ? 'disabled' : ''}>›</button>
     </div>
 
     <section class="hero dark">
       <div class="hleft">
-        <p class="hl">${label}</p>
+        <p class="hl">Ingresos del mes</p>
         <div class="big num">${money(o.total)}</div>
         <div class="lg">
           <span><i class="a"></i>Ahorro <b>${money(o.A)}</b></span>
@@ -330,23 +407,21 @@ function panel() {
       </div>
       ${donut(o)}
     </section>
+    ${list.length ? '' : '<p class="empty">No hay ventas registradas en este mes.</p>'}
 
-    <section class="list"><h2>Últimos 7 días</h2>${chart7()}</section>
-
-    <section class="list"><h2>Por local</h2>${loc('M')}${loc('C')}</section>
-
-    <section class="list"><h2>Margen del periodo</h2>
+    <section class="list"><h2>Margen del mes</h2>
       <div class="kv"><span>Ingresos</span><b class="num">${money(o.total)}</b></div>
       <div class="kv"><span>Costo de las gorras vendidas</span><b class="num">${money(o.cost)}</b></div>
       <div class="kv total"><span>Margen bruto${o.total ? ` (${Math.round(mp / o.total * 100)}%)` : ''}</span><b class="num">${money(mp)}</b></div>
     </section>
 
-    <section class="list"><h2>Cada periodo</h2>
-      <div class="pills wide">
-        <button class="${per === 'week' ? 'on' : ''}" onclick="setPer('week')">Por semana</button>
-        <button class="${per === 'month' ? 'on' : ''}" onclick="setPer('month')">Por mes</button>
-      </div>${periods}
-    </section>`;
+    ${scope('all', 'AGI por tipo de venta', list, false)}
+    ${scope('M', 'Morelos', list.filter(s => s.loc === 'M'), true)}
+    ${scope('C', 'Carrillo', list.filter(s => s.loc === 'C'), true)}
+
+    <section class="list"><h2>Últimos 6 meses</h2>${chartMonths(mo)}</section>
+
+    <section class="list"><h2>Cada mes</h2>${months}</section>`;
 }
 
 /* =========================================================
@@ -484,35 +559,41 @@ const VIEWS = { hoy, panel, stock, ventas, ajustes };
 
 /* ---------- acciones: ticket y venta ---------- */
 function setSeason(v) { S.settings.season = v; save(); render(); }
-function setLoc(l) { saleLoc = l; cartN = cartP = 0; render(); }
+function setLoc(l) { saleLoc = l; cart1 = cart2 = cartP = 0; render(); }
 function setDate(v) {
   if (v > todayStr()) { toast('No puedes registrar ventas de días futuros'); v = ''; }
   saleDate = (!v || v === todayStr()) ? null : v; render();
 }
-function setRange(v) { range = v; render(); }
-function setPer(v) { per = v; render(); }
+function setMonth(k) {                    // panel: elegir un mes (no se puede pasar del mes actual)
+  const now = monthKey(todayStr());
+  if (k > now) return;
+  pmo = k === now ? null : k; render(); window.scrollTo(0, 0);
+}
+function shiftMonth(d) { setMonth(addMonth(curMo(), d)); }
 
 function cart(key, d) {
-  if (key === 'n') cartN = Math.max(0, Math.min(S.stock.normal[saleLoc], cartN + d));
-  else cartP = Math.max(0, Math.min(S.stock.premium[saleLoc], cartP + d));
-  render();
+  if (key === 'n1') cart1 = Math.max(0, cart1 + d);
+  else if (key === 'n2') cart2 = Math.max(0, cart2 + d);
+  else cartP = Math.max(0, cartP + d);
+  clampCart(); render();
   const b = document.querySelector(`.prod.${key} .step b`);
   if (b) b.classList.add('pop');
 }
-function clearCart() { cartN = cartP = 0; render(); }
+function clearCart() { cart1 = cart2 = cartP = 0; render(); }
 
 function cobrar() {
-  const n = cartN, pm = cartP;
-  if (n + pm < 1) return;
-  if (S.stock.normal[saleLoc] < n) return toast(`No hay suficientes normales en ${LOC[saleLoc]}`);
-  if (S.stock.premium[saleLoc] < pm) return toast(`No hay suficientes premium en ${LOC[saleLoc]}`);
-  const c = calc(n, pm), id = uid();
-  S.sales.push({ id, date: curDate(), loc: saleLoc, n, pm, qty: c.qty, total: c.total,
-    A: c.A, G: c.G, I: c.I, cost: c.cost, season: S.settings.season });
-  S.stock.normal[saleLoc] -= n; S.stock.premium[saleLoc] -= pm;
-  cartN = cartP = 0;
+  const lines = cartLines();
+  if (!lines.length) return;
+  const needN = lines.reduce((a, l) => a + l.n, 0), needP = lines.reduce((a, l) => a + l.pm, 0);
+  if (S.stock.normal[saleLoc] < needN) return toast(`No hay suficientes normales en ${LOC[saleLoc]}`);
+  if (S.stock.premium[saleLoc] < needP) return toast(`No hay suficientes premium en ${LOC[saleLoc]}`);
+  const tk = uid(), date = curDate(), season = S.settings.season;
+  lines.forEach((l, i) => S.sales.push({ ...l, id: tk + i, tk, date, loc: saleLoc, season }));   // un registro por tipo
+  S.stock.normal[saleLoc] -= needN; S.stock.premium[saleLoc] -= needP;
+  const total = lines.reduce((a, l) => a + l.total, 0);
+  cart1 = cart2 = cartP = 0;
   save(); render(); buzz(18);
-  toast(`Cobrado ${money(c.total)} · ${LOC[saleLoc]}`, { label: 'Deshacer', fn: `undoSale('${id}')` });
+  toast(`Cobrado ${money(total)} · ${LOC[saleLoc]}`, { label: 'Deshacer', fn: `undoSale('${tk}')` });
 }
 
 function removeSale(id) {
@@ -523,7 +604,12 @@ function removeSale(id) {
   save();
   return true;
 }
-function undoSale(id) { if (removeSale(id)) { buzz(10); toast('Venta deshecha'); render(); } }
+function undoSale(tk) {                    // deshace todo el ticket (todos sus tipos)
+  const ids = S.sales.filter(s => s.tk === tk || s.id === tk).map(s => s.id);
+  if (!ids.length) return;
+  ids.forEach(id => removeSale(id));
+  buzz(10); toast('Venta deshecha'); render();
+}
 function delSale(id) {
   if (!confirm('¿Borrar esta venta? Las gorras regresan al inventario del local.')) return;
   removeSale(id); render();
@@ -598,9 +684,10 @@ function exportData() {
 }
 function exportCSV() {
   if (!S.sales.length) return toast('Aún no hay ventas');
-  const rows = [['Fecha', 'Local', 'Normales', 'Premium', 'Gorras', 'Total', 'Ahorro', 'Ganancia', 'Inversion', 'Costo']];
+  const KN = { one: 'Gorra', two: 'Promo 2 gorras', prem: 'Premium' };
+  const rows = [['Fecha', 'Local', 'Tipo', 'Ventas', 'Gorras', 'Total', 'Ahorro', 'Ganancia', 'Inversion', 'Costo']];
   [...S.sales].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id)).forEach(s =>
-    rows.push([s.date, LOC[s.loc] || s.loc, s.n, s.pm, s.qty, s.total, s.A, s.G, s.I, s.cost || 0]));
+    rows.push([s.date, LOC[s.loc] || s.loc, KN[s.kind] || '', s.k || '', s.qty, s.total, s.A, s.G, s.I, s.cost || 0]));
   download(new Blob(['﻿' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }), `gorv-ventas-${todayStr()}.csv`);
 }
 
@@ -612,7 +699,7 @@ $('#importFile').addEventListener('change', e => {
       const d = JSON.parse(r.result);
       if (!d.stock || !d.sales) throw 0;
       if (!confirm('Esto reemplaza los datos actuales. ¿Continuar?')) return;
-      S = merge(clone(DEFAULTS), d);
+      S = upgrade(merge(clone(DEFAULTS), d));
       save(); toast('Respaldo restaurado'); render();
     } catch (err) { toast('Archivo no válido'); }
   };
@@ -622,7 +709,7 @@ $('#importFile').addEventListener('change', e => {
 function resetAll() {
   if (!confirm('¿Borrar TODOS los datos de la app?')) return;
   if (!confirm('Esta acción no se puede deshacer. ¿Seguro?')) return;
-  S = clone(DEFAULTS); cartN = cartP = 0; save(); render();
+  S = clone(DEFAULTS); cart1 = cart2 = cartP = 0; save(); render();
 }
 
 /* ---------- arranque / modo sin internet ---------- */

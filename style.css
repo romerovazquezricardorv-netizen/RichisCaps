@@ -12,7 +12,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--font);
   padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
-body.tk{padding-bottom:calc(172px + env(safe-area-inset-bottom,0px))}
+body.tk{padding-bottom:calc(196px + env(safe-area-inset-bottom,0px))}
 button{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .num{font-style:italic;font-weight:900;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
@@ -67,21 +67,32 @@ h3{font-size:14px;margin:18px 0 6px;font-weight:800}
 .season{padding:14px 0 6px;font-size:13px;color:var(--muted)}
 .season span{display:block;margin-bottom:6px}
 
-/* productos: filas, no tarjetas */
+/* productos: tres apartados separados (gorra $89 · promo $170 · premium $185) */
 .sheet{margin-top:8px}
-.prod{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;border-top:1px solid var(--line)}
+h2.ask{margin:16px 0 4px;font-size:17px}
+.prod{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin-top:10px;
+  padding:14px 14px 10px;background:var(--paper);border:1.5px solid var(--line);border-radius:20px}
 .pi{min-width:0}
-.pi b{display:block;font-size:19px}
+.pi b{display:block;font-size:20px;line-height:1.15}
 .pi span{display:block;font-size:14px;color:var(--muted)}
 .pi small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
 .pi small.out{color:var(--danger);font-weight:700}
-.prod.p .pi b::after{content:"Premium";margin-left:8px;font-size:11px;font-weight:800;background:var(--ink);color:#fff;
-  padding:2px 8px;border-radius:99px;vertical-align:middle}
-.step{display:flex;align-items:center;gap:6px;flex:none}
-.step button{width:50px;height:50px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);font-size:26px;line-height:1}
+.prod .pg{grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:2px;padding-top:9px;border-top:1px dashed var(--line);font-size:13px;color:var(--muted)}
+.prod.n2{border-color:#e9b6c9;background:#fff8fb}
+.prod.p{background:var(--ink);border-color:var(--ink);color:#fff}
+.prod.p .pi span,.prod.p .pi small,.prod.p .pg{color:#b8bbc2}
+.prod.p .pi small.out{color:#ff8a93}
+.prod.p .pg{border-top-color:rgba(255,255,255,.2)}
+.prod.p .agi{color:#fff}
+.prod.p .agi i.a{background:#3ddc97} .prod.p .agi i.g{background:#ffc53d} .prod.p .agi i.i{background:#9c86ff}
+.step{display:flex;align-items:center;gap:4px;flex:none}
+.step button{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);font-size:26px;line-height:1}
 .step button.plus{background:var(--ink);color:#fff}
 .step button:disabled{opacity:.25}
-.step b{min-width:38px;text-align:center;font-size:28px}
+.step b{min-width:34px;text-align:center;font-size:28px}
+.prod.p .step button{background:transparent;border-color:#fff;color:#fff}
+.prod.p .step button.plus{background:#fff;color:var(--ink)}
 
 /* listas y filas */
 .list{margin-top:22px}
@@ -103,6 +114,36 @@ h3{font-size:14px;margin:18px 0 6px;font-weight:800}
 .kv.total{border-top:2px solid var(--ink);font-size:17px}
 .kv b{font-size:18px}
 
+/* panel: selector de mes, AGI por tipo de venta y por local */
+.monthnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.monthnav .mt{text-align:center;min-width:0}
+.monthnav .mt b{display:block;font-size:24px;line-height:1.1;font-weight:900;letter-spacing:-.02em}
+.monthnav .mt small{color:var(--muted);font-size:13px}
+.mn{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);font-size:26px;line-height:1;flex:none}
+.mn:disabled{opacity:.25}
+button.link{border:0;background:none;padding:6px 8px;font-size:13px;color:var(--ink);text-decoration:underline;font-weight:600}
+.scope{margin-top:26px}
+.sch{display:flex;justify-content:space-between;align-items:baseline}
+.sch h2{margin:0;font-size:18px}
+.sch .amt{font-size:22px}
+.scs{margin:2px 0 10px;color:var(--muted);font-size:13px}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.chips div{border-radius:12px;padding:7px 4px;text-align:center;min-width:0}
+.chips small{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.chips b{display:block;font-size:16px;line-height:1.25;white-space:nowrap}
+.chips .cA{background:#e3f5ee} .chips .cA b{color:#0d7a4d}
+.chips .cG{background:#fdf1d0} .chips .cG b{color:#8a5f00}
+.chips .cI{background:#ece8ff} .chips .cI b{color:#5a3bf0}
+.scope>.chips{margin-bottom:6px}
+.kind{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--paper)}
+.kind.zero{opacity:.55}
+.kh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.kh b{display:block;font-size:16px}
+.kh small{display:block;color:var(--muted);font-size:13px}
+.kh .amt{font-size:20px}
+button.mrow{width:100%;border:0;border-top:1px solid var(--line);background:none;text-align:left;font:inherit;color:inherit}
+button.mrow.sel{background:var(--soft);box-shadow:inset 4px 0 0 var(--ink);padding-left:12px}
+
 /* alertas */
 .alert{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff1d6;color:#6b4300;
   border-radius:16px;padding:12px 14px;margin-top:12px;font-size:14px}
@@ -110,14 +151,15 @@ h3{font-size:14px;margin:18px 0 6px;font-weight:800}
 .pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--soft)}
 .pill.red{background:#ffe3e5;color:var(--danger)}
 
-/* gráfica 7 días */
+/* gráfica de meses */
 .chart{display:flex;align-items:flex-end;gap:8px;height:140px}
-.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;padding:0;border:0;background:none}
 .col i{display:block;width:100%;border-radius:8px 8px 3px 3px;background:#cfd2d7;min-height:3px}
-.col.today i{background:var(--ink)}
+.col.sel i{background:var(--ink)}
 .col b{font-size:11px;margin-bottom:3px;color:var(--muted);white-space:nowrap}
 .col small{font-size:12px;color:var(--muted);margin-top:5px}
-.col.today small{color:var(--ink);font-weight:800}
+.col.sel small{color:var(--ink);font-weight:800}
+.col.sel b{color:var(--ink)}
 
 /* medidores por local */
 .lrow{padding:10px 0;border-top:1px solid var(--line)}
@@ -161,11 +203,11 @@ button.danger{color:var(--danger);border-color:var(--danger)}
 
 /* ticket */
 #ticket{position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:7;max-width:616px;margin:0 auto;
-  display:flex;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:20px;padding:10px 10px 10px 16px;
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:2px 10px;background:var(--ink);color:#fff;border-radius:20px;padding:10px 10px 10px 16px;
   box-shadow:0 8px 24px rgba(0,0,0,.28)}
 #ticket[hidden]{display:none}
 .tkinfo{flex:1;min-width:0}
-.tkinfo small{display:block;color:#b8bbc2;font-size:12px}
+.tkd{grid-column:1 / -1;color:#b8bbc2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tkinfo b{font-size:28px;line-height:1.05}
 #ticket .vac{border:0;background:none;color:#b8bbc2;font-size:14px;padding:10px 4px}
 #ticket .cobrar{border:0;border-radius:14px;padding:15px 24px;font-size:18px;font-weight:900;color:#fff;background:var(--M)}
@@ -218,9 +260,6 @@ button.ghost{min-height:40px;padding:10px 16px}
 /* radios concéntricos: radio exterior (20) - relleno (10) = radio interior (10) */
 #ticket .cobrar{border-radius:10px}
 #ticket{box-shadow:0 1px 2px rgba(12,12,13,.18),0 10px 28px rgba(12,12,13,.30);transform-origin:50% 100%}
-
-/* quitamos la etiqueta repetida: el nombre ya dice "premium" */
-.prod.p .pi b::after{content:none}
 
 /* cifras alineadas */
 .srow,.kv,.loc,.col,.sum,.dayh,.step,.tkinfo,.lt,.alert,table{font-variant-numeric:tabular-nums}
