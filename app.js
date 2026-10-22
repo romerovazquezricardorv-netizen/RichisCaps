@@ -424,6 +424,9 @@ function panel() {
       ${donut(o)}
     </section>
     ${list.length ? '' : '<p class="empty">No hay ventas registradas en este mes.</p>'}
+    <button class="sharebtn" onclick="openSummary()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7"/></svg>
+      Compartir resumen del mes</button>
 
     <section class="list"><h2>Margen del mes</h2>
       <div class="kv"><span>Ingresos</span><b class="num">${money(o.total)}</b></div>
@@ -728,6 +731,178 @@ function resetAll() {
   S = clone(DEFAULTS); cart1 = cart2 = cartP = 0; save(); render();
 }
 
+/* =========================================================
+   RESUMEN DEL MES  (imagen lista para mandar por WhatsApp)
+   Se dibuja con canvas, sin librerías, y funciona sin internet.
+   ========================================================= */
+const FONT = '"Helvetica Neue",Helvetica,Arial,sans-serif';
+const loadImg = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+const svgImg = (kind, color) => loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  ICONS[kind].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" ').replace(/currentColor/g, color)));
+const kindShort = (kind, ks) => kindName(kind, ks).replace('Promo 2 gorras', 'Promo');
+
+function rr(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function txt(c, s, x, y, o = {}) {
+  const size = o.s || 30;
+  c.font = `${o.i ? 'italic ' : ''}${o.w || 600} ${size}px ${FONT}`;
+  c.fillStyle = o.c || '#0c0c0d'; c.textAlign = o.a || 'left'; c.textBaseline = 'alphabetic';
+  try { c.letterSpacing = o.i ? (-0.03 * size) + 'px' : '0px'; } catch (e) {}
+  c.fillText(s, x, y);
+}
+
+async function summaryBlob(mo) {
+  const list = S.sales.filter(s => monthKey(s.date) === mo), o = sum(list), mp = o.total - o.cost;
+  const W = 1080, PAD = 56, IW = W - PAD * 2;
+  const scopes = [['all', 'Por tipo de venta', list, '#0c0c0d'], ['M', 'Morelos', list.filter(s => s.loc === 'M'), '#c93a12'], ['C', 'Carrillo', list.filter(s => s.loc === 'C'), '#08788d']];
+  const TILE = { one: ['#ffffff', '#f1eef6', '#0c0c0d'], two: ['#ffd6e5', '#ffb4cd', '#a21b50'], prem: ['#ffe48f', '#f1b02f', '#2b1d00'] };
+  const [logo, ...ic] = await Promise.all([loadImg('icon-192.png'), ...KINDS.map(k => svgImg(k, TILE[k][2]))]);
+  const icons = { one: ic[0], two: ic[1], prem: ic[2] };
+
+  const SC_H = 100 + 342 + 36, TOP = 760;
+  const H = TOP + scopes.length * SC_H + 110;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+
+  // fondo con manchas de color (el mismo de la app)
+  c.fillStyle = '#f4f2f8'; c.fillRect(0, 0, W, H);
+  const orb = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, col.replace(/[\d.]+\)$/, '0)')); c.fillStyle = g; c.fillRect(0, 0, W, H); };
+  orb(60, 80, 640, 'rgba(255,150,110,.55)'); orb(W, 420, 560, 'rgba(255,120,175,.40)'); orb(0, H * .45, 680, 'rgba(110,225,180,.45)');
+  orb(W, H * .8, 680, 'rgba(176,148,255,.46)'); orb(W * .5, H * .3, 480, 'rgba(255,214,110,.30)');
+
+  const glass = (x, y, w, h, r) => {
+    c.save(); c.shadowColor = 'rgba(60,40,100,.16)'; c.shadowBlur = 40; c.shadowOffsetY = 12;
+    rr(c, x, y, w, h, r); c.fillStyle = 'rgba(255,255,255,.68)'; c.fill(); c.restore();
+    rr(c, x + 1, y + 1, w - 2, h - 2, r); c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = 2; c.stroke();
+  };
+  const tile = (kind, x, y, sz) => {
+    const g = c.createLinearGradient(x, y, x + sz, y + sz); g.addColorStop(0, TILE[kind][0]); g.addColorStop(1, TILE[kind][1]);
+    c.save(); c.shadowColor = 'rgba(60,40,100,.18)'; c.shadowBlur = 12; c.shadowOffsetY = 4;
+    rr(c, x, y, sz, sz, sz * .32); c.fillStyle = g; c.fill(); c.restore();
+    if (icons[kind]) c.drawImage(icons[kind], x + sz * .14, y + sz * .2, sz * .72, sz * .54);
+  };
+
+  // encabezado
+  if (logo) { c.save(); c.shadowColor = 'rgba(24,18,48,.28)'; c.shadowBlur = 20; c.shadowOffsetY = 6; rr(c, PAD, 56, 104, 104, 28); c.fillStyle = '#000'; c.fill(); c.restore();
+    c.save(); rr(c, PAD, 56, 104, 104, 28); c.clip(); c.drawImage(logo, PAD, 56, 104, 104); c.restore(); }
+  txt(c, 'Resumen del mes', PAD + 130, 100, { s: 32, c: '#5a5d65' });
+  txt(c, monthLong(mo), PAD + 130, 156, { s: 66, w: 900, i: 1 });
+
+  // tarjeta oscura con los ingresos y la dona A/G/I
+  const hy = 200, hh = 330;
+  c.save(); c.shadowColor = 'rgba(40,24,90,.28)'; c.shadowBlur = 44; c.shadowOffsetY = 16;
+  rr(c, PAD, hy, IW, hh, 48); c.fillStyle = '#0e0e14'; c.fill(); c.restore();
+  c.save(); rr(c, PAD, hy, IW, hh, 48); c.clip();
+  const orb2 = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, col.replace(/[\d.]+\)$/, '0)')); c.fillStyle = g; c.fillRect(PAD, hy, IW, hh); };
+  orb2(W - PAD, hy, 560, 'rgba(130,96,255,.62)'); orb2(PAD, hy + hh, 520, 'rgba(30,190,120,.45)'); orb2(W * .5, hy + hh + 40, 360, 'rgba(255,190,70,.30)');
+  c.restore();
+  rr(c, PAD + 1, hy + 1, IW - 2, hh - 2, 48); c.strokeStyle = 'rgba(255,255,255,.2)'; c.lineWidth = 2; c.stroke();
+  txt(c, 'Ingresos del mes', PAD + 48, hy + 82, { s: 32, c: '#d3d5db' });
+  txt(c, money(o.total), PAD + 48, hy + 205, { s: 128, w: 900, i: 1, c: '#fff' });
+  txt(c, `${o.qty} ${plural(o.qty, 'gorra', 'gorras')} · margen ${money(mp)}${o.total ? ` (${Math.round(mp / o.total * 100)} %)` : ''}`, PAD + 48, hy + 272, { s: 32, c: '#d3d5db' });
+  {
+    const cx = W - PAD - 150, cy = hy + hh / 2, r = 92, tot = Math.max(1, Math.max(0, o.A) + Math.max(0, o.G) + Math.max(0, o.I));
+    c.lineWidth = 34; c.lineCap = 'butt'; c.strokeStyle = 'rgba(255,255,255,.14)'; c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+    let a0 = -Math.PI / 2;
+    [[o.A, '#3ddc97'], [o.G, '#ffc53d'], [o.I, '#9c86ff']].forEach(([v, col]) => {
+      const a1 = a0 + Math.max(0, v) / tot * Math.PI * 2; if (a1 > a0) { c.strokeStyle = col; c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke(); } a0 = a1;
+    });
+    txt(c, String(o.qty), cx, cy + 14, { s: 56, w: 900, i: 1, c: '#fff', a: 'center' });
+    txt(c, 'gorras', cx, cy + 46, { s: 24, c: '#b8bbc2', a: 'center' });
+  }
+
+  // Ahorro / Ganancia / Inversión
+  const cw = (IW - 40) / 3;
+  [['Ahorro', o.A, 'rgba(205,243,227,.92)', '#0d7a4d'], ['Ganancia', o.G, 'rgba(253,238,196,.95)', '#85590a'], ['Inversión', o.I, 'rgba(228,221,255,.95)', '#5a3bf0']].forEach(([lab, v, bg, col], i) => {
+    const x = PAD + i * (cw + 20);
+    rr(c, x, 562, cw, 150, 34); c.fillStyle = bg; c.fill();
+    rr(c, x + 1, 563, cw - 2, 148, 34); c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 2; c.stroke();
+    txt(c, lab, x + cw / 2, 616, { s: 28, w: 700, c: '#5a5d65', a: 'center' });
+    txt(c, money(v), x + cw / 2, 682, { s: 56, w: 900, i: 1, c: col, a: 'center' });
+  });
+
+  // una tabla por ámbito: los dos locales juntos, Morelos y Carrillo
+  const COL = { u: 462, t: 636, A: 760, G: 878, I: 996 };
+  scopes.forEach(([key, title, sl, color], n) => {
+    const y0 = TOP + n * SC_H, so = sum(sl), smp = so.total - so.cost;
+    txt(c, title, PAD, y0 + 44, { s: 44, w: 800, c: color });
+    txt(c, money(so.total), W - PAD, y0 + 48, { s: 56, w: 900, i: 1, a: 'right' });
+    txt(c, `${so.qty} ${plural(so.qty, 'gorra', 'gorras')} · margen ${money(smp)}`, PAD, y0 + 84, { s: 28, c: '#5a5d65' });
+    const cy0 = y0 + 104; glass(PAD, cy0, IW, 342, 40);
+    const hy0 = cy0 + 44;
+    [['u', 'Ventas'], ['t', 'Total'], ['A', 'Ahorro'], ['G', 'Ganancia'], ['I', 'Inversión']].forEach(([k, lab]) => txt(c, lab, COL[k], hy0, { s: 22, w: 700, c: '#5a5d65', a: 'right' }));
+    KINDS.forEach((kind, i) => {
+      const ks = sl.filter(s => s.kind === kind), ko = sum(ks), units = ks.reduce((a, s) => a + (s.k || 0), 0);
+      const ry = hy0 + 18 + i * 68, mid = ry + 34, dim = units ? 1 : .45;
+      c.globalAlpha = dim;
+      if (i) { c.fillStyle = 'rgba(24,18,48,.1)'; c.fillRect(PAD + 28, ry, IW - 56, 2); }
+      tile(kind, PAD + 28, ry + 8, 52);
+      txt(c, kindShort(kind, ks), PAD + 28 + 52 + 16, mid + 10, { s: 28, w: 800 });
+      txt(c, String(units), COL.u, mid + 10, { s: 28, w: 700, c: '#5a5d65', a: 'right' });
+      txt(c, money(ko.total), COL.t, mid + 10, { s: 28, w: 900, i: 1, a: 'right' });
+      txt(c, money(ko.A), COL.A, mid + 10, { s: 27, w: 900, i: 1, c: '#0d7a4d', a: 'right' });
+      txt(c, money(ko.G), COL.G, mid + 10, { s: 27, w: 900, i: 1, c: '#85590a', a: 'right' });
+      txt(c, money(ko.I), COL.I, mid + 10, { s: 27, w: 900, i: 1, c: '#5a3bf0', a: 'right' });
+      c.globalAlpha = 1;
+    });
+    const ty = hy0 + 18 + 3 * 68; c.fillStyle = '#0c0c0d'; c.fillRect(PAD + 28, ty, IW - 56, 3);
+    const tm = ty + 36 + 12;
+    txt(c, 'Total', PAD + 28, tm, { s: 28, w: 800 });
+    txt(c, String(sl.reduce((a, s) => a + (s.k || 0), 0)), COL.u, tm, { s: 28, w: 700, c: '#5a5d65', a: 'right' });
+    txt(c, money(so.total), COL.t, tm, { s: 28, w: 900, i: 1, a: 'right' });
+    txt(c, money(so.A), COL.A, tm, { s: 27, w: 900, i: 1, c: '#0d7a4d', a: 'right' });
+    txt(c, money(so.G), COL.G, tm, { s: 27, w: 900, i: 1, c: '#85590a', a: 'right' });
+    txt(c, money(so.I), COL.I, tm, { s: 27, w: 900, i: 1, c: '#5a3bf0', a: 'right' });
+  });
+
+  txt(c, `Gorv · generado el ${dateLabel(todayStr())}`, W / 2, H - 52, { s: 26, c: '#5a5d65', a: 'center' });
+  return new Promise(ok => cv.toBlob(ok, 'image/png'));
+}
+
+/* hoja que sube desde abajo (como las de iOS): se cierra tocando el fondo o arrastrando hacia abajo */
+const sheet = document.createElement('div');
+sheet.id = 'sheet';
+sheet.innerHTML = '<div class="scrim"></div><div class="card" role="dialog" aria-modal="true" aria-label="Resumen del mes"><div class="gz"><div class="grab"></div></div><div class="sbody"></div></div>';
+document.body.append(sheet);
+const sbody = sheet.querySelector('.sbody');
+let dragY0 = null, sumFile = null, sumUrl = null;
+const closeSheet = () => sheet.classList.remove('open');
+sheet.querySelector('.scrim').addEventListener('click', closeSheet);
+sheet.addEventListener('pointerdown', e => { if (e.target.closest('.gz')) { dragY0 = e.clientY; sheet.classList.add('drag'); } });
+sheet.addEventListener('pointermove', e => { if (dragY0 !== null) sheet.style.setProperty('--drag', Math.max(0, e.clientY - dragY0) + 'px'); });
+const endDrag = e => {
+  if (dragY0 === null) return;
+  const dy = e.clientY - dragY0; dragY0 = null;
+  sheet.classList.remove('drag'); sheet.style.setProperty('--drag', '0px');
+  if (dy > 110) closeSheet();
+};
+sheet.addEventListener('pointerup', endDrag);
+sheet.addEventListener('pointercancel', endDrag);
+
+async function openSummary() {
+  const mo = curMo();
+  if (!S.sales.some(s => monthKey(s.date) === mo)) return toast('No hay ventas en este mes');
+  sbody.innerHTML = '<p class="sub wait">Preparando tu resumen…</p>';
+  sheet.classList.add('open');
+  const blob = await summaryBlob(mo);
+  sumFile = new File([blob], `gorv-resumen-${mo}.png`, { type: 'image/png' });
+  if (sumUrl) URL.revokeObjectURL(sumUrl);
+  sumUrl = URL.createObjectURL(blob);
+  sbody.innerHTML = `<h2>Resumen de ${monthLong(mo)}</h2>
+    <div class="sumwrap"><img class="sumimg" src="${sumUrl}" alt="Resumen de ${monthLong(mo)}"></div>
+    <div class="sacts"><button class="primary" onclick="shareSummary()">Compartir</button>
+      <button class="ghost" onclick="saveSummary()">Guardar imagen</button></div>`;
+}
+function shareSummary() {
+  if (navigator.canShare && navigator.canShare({ files: [sumFile] }))
+    navigator.share({ files: [sumFile], title: 'Resumen del mes · Gorv' }).catch(() => {});
+  else saveSummary();
+}
+function saveSummary() { download(sumFile, sumFile.name); toast('Imagen guardada'); }
+
 /* ---------- arranque / modo sin internet ---------- */
 window.addEventListener('online', updateNet);
 window.addEventListener('offline', updateNet);
@@ -737,6 +912,27 @@ window.addEventListener('offline', updateNet);
 }
 render();
 requestAnimationFrame(() => requestAnimationFrame(() => nav.classList.add('anim')));   // sin animar la posición inicial
+{                                       // animación de entrada: solo al abrir la app (no al cambiar de pestaña ni al recargar en la misma sesión)
+  let first = false;
+  try { first = !sessionStorage.getItem('gorv_launch'); sessionStorage.setItem('gorv_launch', '1'); } catch (e) {}
+  const forced = /[?&]splash=1/.test(location.search);
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (forced || (first && !calm && !navigator.webdriver)) {
+    const el = document.createElement('div');
+    el.id = 'launch';
+    el.innerHTML = '<div class="lc"><div class="logo"><img src="icon-192.png" alt=""></div><b>Gorv</b></div>';
+    document.body.append(el);
+    const done = () => {
+      if (el.classList.contains('out')) return;
+      el.classList.add('out');
+      const v = $('#view');             // el contenido entra mientras el telón se disuelve
+      v.style.setProperty('--dx', '0px'); v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter');
+      setTimeout(() => el.remove(), 520);
+    };
+    el.addEventListener('pointerdown', done);      // tocar la pantalla lo salta
+    setTimeout(done, 1300);
+  }
+}
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
