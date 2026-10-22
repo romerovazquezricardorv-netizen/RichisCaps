@@ -153,17 +153,25 @@ let pmo = null;                                      // mes que muestra el panel
 let hist = { loc: 'all', month: 'all', limit: 30 };  // ventas
 const curDate = () => saleDate || todayStr();
 
+/* Barra de abajo: una burbuja de cristal (.lens) se desliza hasta la sección elegida */
+const TAB_ORDER = ['hoy', 'panel', 'stock', 'ventas', 'ajustes'];
+const nav = $('nav'), lens = document.createElement('span');
+lens.className = 'lens'; lens.setAttribute('aria-hidden', 'true'); nav.prepend(lens);
+
 function go(t) {
-  const changed = t !== tab;
+  const prev = tab, changed = t !== tab;
   tab = t; render(); window.scrollTo(0, 0);
-  if (changed) {                       // la pantalla entra con un fade corto; reiniciamos la animación
-    const v = $('#view');
+  if (changed) {
+    const v = $('#view');              // la pantalla entra desde el lado hacia el que te mueves
+    v.style.setProperty('--dx', (TAB_ORDER.indexOf(t) > TAB_ORDER.indexOf(prev) ? 26 : -26) + 'px');
     v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter');
+    lens.classList.remove('move'); void lens.offsetWidth; lens.classList.add('move');   // la burbuja se estira al viajar
   }
 }
 const buzz = ms => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };   // vibración corta al cobrar
 function render() {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+  nav.style.setProperty('--i', TAB_ORDER.indexOf(tab));
   $('#title').textContent = TITLES[tab];
   $('#subtitle').textContent = longDate(todayStr());
   $('#view').innerHTML = VIEWS[tab]();
@@ -176,11 +184,6 @@ function updateNet() {
 }
 
 /* ---------- componentes ---------- */
-function agiBar(o) {
-  const t = Math.max(o.total, 1);
-  const pc = v => Math.max(0, v) / t * 100;
-  return `<div class="bar"><i class="a" style="width:${pc(o.A)}%"></i><i class="g" style="width:${pc(o.G)}%"></i><i class="i" style="width:${pc(o.I)}%"></i></div>`;
-}
 function agiLine(o) {
   return `<span class="agi"><i class="a"></i>${money(o.A)}<i class="g"></i>${money(o.G)}<i class="i"></i>${money(o.I)}</span>`;
 }
@@ -201,6 +204,16 @@ function donut(o) {
 const locOptions = sel => LOCS.map(l => `<option value="${l}" ${l === sel ? 'selected' : ''}>${LOC[l]}</option>`).join('');
 const tipoOptions = () => TIPOS.map(t => `<option value="${t}">${TIPO[t]}</option>`).join('');
 const acc = (title, body) => `<details class="acc"><summary>${title}</summary><div class="accb">${body}</div></details>`;
+
+/* Iconos de las 3 categorías: gorra $89, promo 2 por $170 y premium $185 */
+const CAP = '<path d="M11 33C11 19 20 10 32 10c11 0 18 8 19 21"/><path d="M32 10c-4 6-5 15-3 23"/><path d="M8 33h43c6 0 10 3 11 6-7 2-38 2-54-1z"/><circle cx="32" cy="9" r="1.6" fill="currentColor" stroke="none"/>';
+const SVG = b => `<svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${b}</svg>`;
+const ICONS = {
+  one: SVG(CAP),
+  two: SVG(`<g transform="translate(12 -2) scale(.7)" opacity=".5">${CAP}</g><g transform="translate(-1 11) scale(.82)">${CAP}</g>`),
+  prem: SVG(`<g transform="translate(0 6) scale(.9)">${CAP}</g><path d="M53 3l1.7 4.6L59 9.3l-4.3 1.7L53 15.6l-1.7-4.6L47 9.3l4.3-1.7z" fill="currentColor" stroke-width="1.6"/><path d="M60 19l.9 2.2 2.1.9-2.1.9L60 25.2l-.9-2.2-2.1-.9 2.1-.9z" fill="currentColor" stroke-width="1"/>`)
+};
+const tile = (kind, sm) => `<span class="tile t-${ICONS[kind] ? kind : 'one'}${sm ? ' sm' : ''}">${ICONS[kind] || ICONS.one}</span>`;
 
 function saleName(s) {
   const u = s.k ? s.total / s.k : s.total, x = s.k > 1 ? s.k + ' × ' : '';
@@ -238,18 +251,21 @@ function hoy() {
 
   const prod = (key, name, desc, stockTxt, out, n) => `
     <div class="prod ${key}">
-      <div class="pi"><b>${name}</b><span>${desc}</span>
-        <small class="${out ? 'out' : ''}">${stockTxt}</small></div>
-      <div class="step">
-        <button aria-label="Quitar ${name}" onclick="cart('${key}',-1)" ${n < 1 ? 'disabled' : ''}>−</button>
-        <b class="num">${n}</b>
-        <button class="plus" aria-label="Agregar ${name}" onclick="cart('${key}',1)" ${room(key) < 1 ? 'disabled' : ''}>+</button>
+      ${tile(KEYK[key])}
+      <div class="pi"><b>${name}</b><span>${desc}</span></div>
+      <div class="pr">
+        <small class="${out ? 'out' : ''}">${stockTxt}</small>
+        <div class="step">
+          <button aria-label="Quitar ${name}" onclick="cart('${key}',-1)" ${n < 1 ? 'disabled' : ''}>−</button>
+          <b class="num">${n}</b>
+          <button class="plus" aria-label="Agregar ${name}" onclick="cart('${key}',1)" ${room(key) < 1 ? 'disabled' : ''}>+</button>
+        </div>
       </div>
       <div class="pg"><span>Reparto de cada una</span>${agiLine(line(KEYK[key], 1))}</div>
     </div>`;
 
   const rows = mine.length ? mine.map(s => `
-    <div class="srow"><div><b>${saleName(s)}</b><small>${agiLine(s)}</small></div>
+    <div class="srow">${tile(s.kind, true)}<div><b>${saleName(s)}</b><small>${agiLine(s)}</small></div>
       <span class="amt num">${money(s.total)}</span>
       <button class="x" aria-label="Borrar venta" onclick="delSale('${s.id}')">✕</button></div>`).join('')
     : '<p class="empty">Aún no hay ventas en este local. Agrega gorras al ticket para empezar.</p>';
@@ -338,7 +354,7 @@ function kindBlock(kind, list, sc) {
     ? `${units} ${plural(units, 'promo', 'promos')} · ${o.qty} gorras`
     : `${units} ${plural(units, 'vendida', 'vendidas')}`;
   return `<div class="kind ${units ? '' : 'zero'}" data-scope="${sc}" data-kind="${kind}">
-    <div class="kh"><div><b>${kindName(kind, ks)}</b><small>${sub}</small></div><span class="amt num">${money(o.total)}</span></div>
+    <div class="kh">${tile(kind, true)}<div><b>${kindName(kind, ks)}</b><small>${sub}</small></div><span class="amt num">${money(o.total)}</span></div>
     ${chips(o)}</div>`;
 }
 
@@ -504,8 +520,8 @@ function ventas() {
       html += `<div class="dayh"><b>${longDate(s.date)}</b><span class="num">${money(dayTot[s.date].total)}</span></div>`;
       last = s.date;
     }
-    html += `<div class="srow"><i class="dot ${s.loc}"></i>
-      <div><b>${saleName(s)}</b><small>${LOC[s.loc] || ''} · ${agiLine(s)}</small></div>
+    html += `<div class="srow">${tile(s.kind, true)}
+      <div><b>${saleName(s)}</b><small class="meta"><span class="l${s.loc}">${LOC[s.loc] || ''}</span>${agiLine(s)}</small></div>
       <span class="amt num">${money(s.total)}</span>
       <button class="x" aria-label="Borrar venta" onclick="delSale('${s.id}')">✕</button></div>`;
   });
@@ -720,6 +736,7 @@ window.addEventListener('offline', updateNet);
   if (q && VIEWS[q]) tab = q;
 }
 render();
+requestAnimationFrame(() => requestAnimationFrame(() => nav.classList.add('anim')));   // sin animar la posición inicial
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
