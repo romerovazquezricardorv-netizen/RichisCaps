@@ -1,0 +1,12 @@
+{
+  "name": "gorv",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/smoke.mjs",
+    "capturas": "node tests/capturas.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
