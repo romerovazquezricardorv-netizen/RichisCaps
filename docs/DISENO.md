@@ -92,6 +92,15 @@ Reglas: nada empieza desde escala 0 (se arranca en 0.8–0.97), no se anima lo q
 
 ## Llevarlo a Figma
 
+Ya existe el archivo **[Gorv · App](https://www.figma.com/design/QuGfqJoH5aVm6PZ1OCt2Il)** con:
+
+- Colecciones de variables **Gorv · Claro** y **Gorv · Oscuro** (mismos nombres que las variables de `style.css`; el plan gratuito de Figma solo deja un modo por colección, por eso son dos) y **Gorv · Radio**.
+- Componentes: *Tarjeta de venta* (Gorra, Promo, Premium; propiedad *Cantidad*), *Barra de navegación* (una variante por sección activa), *Existencias*, *Bloque AGI* y *Logo Gorv*.
+- Pantallas Hoy, Inventario y Panel en claro, y sus copias en oscuro.
+- La letra es Roboto: es la que muestra la app en Android (Helvetica Neue no está en Figma).
+
+Para empezar uno desde cero:
+
 1. Crea un archivo con un *frame* de **390 × 844** (celular) y otro de **360 × 800**.
 2. En *Variables* crea una colección "Gorv" con los colores de la tabla (mismos nombres que en el CSS) y otra con los radios (10, 12, 16, 20, 24, 28).
 3. Usa las capturas de `tests/screens/` (se generan con `npm run capturas`) como base para dibujar cada pantalla.
