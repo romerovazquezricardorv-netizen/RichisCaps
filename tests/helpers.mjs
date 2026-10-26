@@ -46,8 +46,8 @@ export function seedConVentas() {
   return d;
 }
 
-export async function openApp(browser, url, { width = 390, height = 844, sw = 'block', data = seed(), path = '/index.html' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, serviceWorkers: sw });
+export async function openApp(browser, url, { width = 390, height = 844, sw = 'block', data = seed(), path = '/index.html', scheme = 'light' } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, serviceWorkers: sw, colorScheme: scheme });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [KEY, JSON.stringify(data)]);
   const page = await ctx.newPage();
   const errors = [];

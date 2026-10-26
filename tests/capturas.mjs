@@ -8,12 +8,16 @@ const out = path.join(ROOT, 'tests', 'screens');
 fs.mkdirSync(out, { recursive: true });
 const { server, url } = await startServer();
 const browser = await chromium.launch();
-const { page } = await openApp(browser, url, { data: seedConVentas() });
-await page.evaluate(() => { cart('n1', 2); cart('n2', 1); cart('p', 1); });      // un ticket con los tres tipos
-for (const t of ['hoy', 'panel', 'stock', 'ventas', 'ajustes']) {
-  await page.evaluate(x => go(x), t);
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(out, `${t}.png`), fullPage: t === 'panel' });
-  console.log('captura', t);
+for (const scheme of ['light', 'dark']) {                                       // hoy.png, hoy-oscuro.png, ...
+  const { ctx, page } = await openApp(browser, url, { data: seedConVentas(), scheme });
+  await page.evaluate(() => { cart('n1', 2); cart('n2', 1); cart('p', 1); });    // un ticket con los tres tipos
+  for (const t of ['hoy', 'panel', 'stock', 'ventas', 'ajustes']) {
+    await page.evaluate(x => go(x), t);
+    await page.waitForTimeout(600);
+    const nombre = scheme === 'dark' ? `${t}-oscuro` : t;
+    await page.screenshot({ path: path.join(out, `${nombre}.png`), fullPage: t === 'panel' });
+    console.log('captura', nombre);
+  }
+  await ctx.close();
 }
 await browser.close(); server.close();

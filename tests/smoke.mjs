@@ -340,6 +340,48 @@ await prueba('animación de entrada: sola se retira a los ~1.3 s', async () => {
   await ctx.close();
 });
 
+/* ---------- tema claro / oscuro ---------- */
+
+await prueba('tema automático: sigue al celular (claro u oscuro)', async () => {
+  const fondo = page => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const a = await openApp(browser, url);
+  const claro = [await a.page.getAttribute('html', 'data-theme'), await fondo(a.page)];
+  await a.ctx.close();
+  const b = await openApp(browser, url, { scheme: 'dark' });
+  const oscuro = [await b.page.getAttribute('html', 'data-theme'), await fondo(b.page),
+    await b.page.getAttribute('meta[name="theme-color"]', 'content')];
+  await b.ctx.close();
+  assert.deepEqual(claro, ['light', 'rgb(244, 242, 248)']);
+  assert.deepEqual(oscuro, ['dark', 'rgb(14, 13, 19)', '#0e0d13']);
+});
+
+await prueba('Ajustes > Apariencia: elegir Claro u Oscuro se guarda y gana al del celular', async () => {
+  const { ctx, page, errors } = await openApp(browser, url, { scheme: 'dark' });
+  await page.evaluate(() => go('ajustes'));
+  await page.click('.pills button:has-text("Claro")');
+  const t1 = await page.getAttribute('html', 'data-theme');
+  await page.reload();
+  const t2 = await page.getAttribute('html', 'data-theme');
+  await page.evaluate(() => go('ajustes'));
+  await page.click('.pills button:has-text("Oscuro")');
+  const d = await readData(page);
+  await ctx.close();
+  assert.deepEqual([t1, t2, d.settings.theme], ['light', 'light', 'dark']);
+  assert.deepEqual(errors, []);
+});
+
+await prueba('tema oscuro: sin scroll horizontal y sin errores en las 5 pestañas', async () => {
+  const { ctx, page, errors } = await openApp(browser, url, { width: 360, scheme: 'dark', data: seedConVentas() });
+  await page.evaluate(() => { cart('n1', 1); cart('n2', 1); cart('p', 1); });
+  for (const t of TABS) {
+    await page.evaluate(x => go(x), t);
+    const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.ok(sobra <= 0, `se desborda ${sobra}px en "${t}"`);
+  }
+  await ctx.close();
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- el resto ---------- */
 
 await prueba('atajo del ícono: ?tab=panel abre el Panel', async () => {

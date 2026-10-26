@@ -24,15 +24,32 @@ Todo está en `style.css`; los valores de abajo son los mismos que las variables
 | Inversión | `--I` | `#6d4aff` | 5.2:1 |
 | Peligro / agotado | `--danger` | `#cf2a37` | 5.2:1 |
 
-Superficies: `--glass` (blanco al 58 %), `--glass-hi` (blanco al 82 %, para botones y campos), `--soft` (fondos de medidores), `--line` (separadores).
-La app es siempre clara; no hay modo oscuro automático.
+Superficies: `--glass-fill` (tarjetas: degradado de blanco al 64 % arriba a la izquierda, 20 % al centro y 36 % abajo, como si le diera la luz), `--glass-hi` (blanco al 76 %, para botones y campos), `--soft` (fondos de medidores), `--line` (separadores).
+
+## Tema oscuro
+
+En *Ajustes > Apariencia* se elige **Automático** (el del celular, opción de fábrica), **Claro** u **Oscuro**. El tema se guarda con los demás ajustes (entra en el respaldo) y `index.html` lo aplica antes de pintar, así no parpadea en blanco.
+
+Es el mismo diseño con otras variables (`html[data-theme="dark"]` en `style.css`): fondo `#0e0d13`, texto `#f4f2f9`, cristal ahumado (blanco al 15 → 4 %), manchas de color al 55 %, botones sólidos en blanco con texto negro.
+
+| Uso | Claro | Oscuro |
+|---|---|---|
+| Texto principal | `#0c0c0d` | `#f4f2f9` |
+| Texto secundario | `#5a5d65` | `#a8a6b3` |
+| Morelos como texto (`--Mt`) | `#c93a12` | `#ff8d62` |
+| Carrillo como texto (`--Ct`) | `#08788d` | `#4fd0e3` |
+| Ahorro · Ganancia · Inversión | `#14935f` · `#c98a00` · `#6d4aff` | `#3ddc97` · `#ffc53d` · `#9c86ff` |
+| Peligro | `#cf2a37` | `#ff6b76` |
+
+Los fondos de color de Morelos y Carrillo (cabecera de Hoy, botón *Cobrar*) no cambian: el texto blanco encima sigue teniendo 5.1:1. La imagen del *Resumen del mes* siempre sale clara, porque se comparte.
 
 ## Cristal
 
 | Pieza | Receta |
 |---|---|
-| Fondo | cinco manchas de color fijas detrás de todo (`body::before`) |
-| Tarjeta de vidrio | `--glass` + borde blanco `--edge` + brillo interior arriba `--spec` + sombra suave `--lift` |
+| Fondo | seis manchas de color fijas detrás de todo (`body::before`) |
+| Tarjeta de vidrio | degradado `--glass-fill` + borde `--edge` + luz en el borde de arriba y los lados `--spec` + sombra suave `--lift` |
+| Burbuja de la barra de abajo | `--lens` + reflejo rosa a la izquierda y menta a la derecha (`--fringe`), como el borde de una gota |
 | Encabezado, barra y ticket | blanco o negro translúcido + `backdrop-filter: blur(22–28px) saturate(1.8)` |
 | Si el navegador no esmerila | fondos casi opacos (`@supports not`), se lee igual |
 
@@ -82,4 +99,4 @@ Reglas: nada empieza desde escala 0 (se arranca en 0.8–0.97), no se anima lo q
 
 ## Revisión visual automática
 
-`npm run capturas` guarda una foto de cada pantalla con datos de ejemplo, y `npm test` comprueba que no haya errores, que nada se salga de la pantalla en 360, 390 y 412 px, que los precios y el AGI sean correctos y que la app abra sin internet.
+`npm run capturas` guarda una foto de cada pantalla con datos de ejemplo, en claro y en oscuro (`hoy.png`, `hoy-oscuro.png`, ...), y `npm test` comprueba que no haya errores, que nada se salga de la pantalla en 360, 390 y 412 px (también en oscuro), que el tema siga al celular y que *Apariencia* se guarde, que los precios y el AGI sean correctos y que la app abra sin internet.

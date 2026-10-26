@@ -15,7 +15,7 @@ No tiene servidores ni cuentas: los datos viven en el celular y funciona sin int
 - **Resumen del mes**: en el Panel, *Compartir resumen del mes* genera una imagen (ingresos, margen, Ahorro/Ganancia/Inversión, y una tabla por tipo de venta para los dos locales juntos, Morelos y Carrillo). Se comparte por WhatsApp o se guarda en el celular, sin internet.
 - **Entrada**: al abrir la app, el logo aparece con un resorte y un brillo, y se puede saltar tocando la pantalla.
 
-Estilo **liquid glass** claro: fondo con manchas de color, vidrio esmerilado (blur) en el encabezado, la barra de abajo y el ticket, iconos de gorra para cada tipo de venta y una burbuja animada que se desliza en la barra al cambiar de sección.
+Estilo **liquid glass** en claro y oscuro (*Ajustes > Apariencia*: automático, claro u oscuro): fondo con manchas de color, tarjetas de vidrio con reflejo, vidrio esmerilado (blur) en el encabezado, la barra de abajo y el ticket, iconos de gorra para cada tipo de venta y una burbuja animada que se desliza en la barra al cambiar de sección.
 
 Mantén presionado el ícono en el celular para entrar directo a *Vender*, *Panel* o *Inventario*.
 
