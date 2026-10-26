@@ -20,6 +20,7 @@ const KEYK = { n1: 'one', n2: 'two', p: 'prem' };   // apartado de la pantalla H
 const DEFAULTS = {
   settings: {
     season: 'normal',          // 'normal' | 'alta'
+    theme: 'auto',             // 'auto' (el del celular) | 'light' | 'dark'
     low: 5,                    // aviso de inventario bajo (total por calidad)
     prices: {
       normal: { one: 89, two: 170 },
@@ -170,6 +171,7 @@ function go(t) {
 }
 const buzz = ms => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };   // vibración corta al cobrar
 function render() {
+  applyTheme();                         // también al restaurar un respaldo o borrar todo
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
   nav.style.setProperty('--i', TAB_ORDER.indexOf(tab));
   $('#title').textContent = TITLES[tab];
@@ -541,6 +543,13 @@ function ajustes() {
   const gN = p.normal.one - st.agi.normal.A - st.agi.normal.I;
   const gP = p.premium - st.agi.premium.A - st.agi.premium.I;
   return `
+    <section class="list"><h2>Apariencia</h2>
+      <div class="pills" role="group" aria-label="Tema">
+        ${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([v, l]) =>
+          `<button class="${st.theme === v ? 'on' : ''}" onclick="setTheme('${v}')">${l}</button>`).join('')}
+      </div>
+      <p class="sub">Automático usa el modo claro u oscuro de tu celular.</p>
+    </section>
     <section class="list"><h2>Precios de venta</h2>
       <div class="grid2">
         <div><label>Normal: 1 gorra</label><input id="n1" type="number" inputmode="decimal" value="${p.normal.one}"></div>
@@ -578,6 +587,15 @@ const VIEWS = { hoy, panel, stock, ventas, ajustes };
 
 /* ---------- acciones: ticket y venta ---------- */
 function setSeason(v) { S.settings.season = v; save(); render(); }
+// Tema: 'auto' sigue al celular. index.html ya lo aplica antes de pintar; aquí se mantiene al día.
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const t = S.settings.theme, dark = t === 'dark' || (t !== 'light' && darkMQ.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#0e0d13' : '#ffffff';
+}
+darkMQ.addEventListener('change', applyTheme);
+function setTheme(v) { S.settings.theme = v; save(); render(); }
 function setLoc(l) { saleLoc = l; cart1 = cart2 = cartP = 0; render(); }
 function setDate(v) {
   if (v > todayStr()) { toast('No puedes registrar ventas de días futuros'); v = ''; }
