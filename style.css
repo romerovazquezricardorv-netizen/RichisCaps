@@ -13,7 +13,7 @@
   --bg:#f4f2f8; --paper:#ffffff; --ink:#0c0c0d; --muted:#5a5d65;
   --line:rgba(24,18,48,.11); --soft:rgba(24,18,48,.07);
   --A:#14935f; --G:#c98a00; --I:#6d4aff;      /* Ahorro, Ganancia, Inversión */
-  --M:#c93a12; --C:#08788d;                   /* Morelos, Carrillo */
+  --M:#c93a12; --C:#08788d; --R:#8a5a2c;      /* Morelos, Carrillo, Roble */
   --danger:#cf2a37;
   --font:"Helvetica Neue",Helvetica,Arial,"Segoe UI",Roboto,sans-serif;
 
@@ -33,7 +33,7 @@
   --solid:linear-gradient(180deg,#2c2c33,#0c0c0d); --on-solid:#fff;
   --solid-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 10px rgba(12,12,13,.25);
   --blobs:1; --scrim:rgba(24,18,48,.36); --dash:rgba(24,18,48,.18); --grab:rgba(24,18,48,.24);
-  --Mt:var(--M); --Ct:var(--C);                 /* Morelos y Carrillo como texto */
+  --Mt:var(--M); --Ct:var(--C); --Rt:var(--R);  /* Morelos, Carrillo y Roble como texto */
   --tile1:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,255,255,.55));
   --n2-bg:linear-gradient(135deg,rgba(255,214,230,.70),rgba(255,255,255,.40)); --n2-edge:rgba(255,196,218,.9);
   --cA-bg:rgba(205,243,227,.80); --cA:#0d7a4d; --cG-bg:rgba(253,238,196,.86); --cG:#85590a; --cI-bg:rgba(228,221,255,.86); --cI:#5a3bf0;
@@ -64,7 +64,7 @@
   --solid:linear-gradient(180deg,#ffffff,#e2dfea); --on-solid:#0c0c0d;
   --solid-shadow:inset 0 -1px 0 rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.4);
   --blobs:.55; --scrim:rgba(0,0,0,.55); --dash:rgba(255,255,255,.18); --grab:rgba(255,255,255,.3);
-  --Mt:#ff8d62; --Ct:#4fd0e3;
+  --Mt:#ff8d62; --Ct:#4fd0e3; --Rt:#e3ad74;
   --tile1:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.07));
   --n2-bg:linear-gradient(135deg,rgba(255,110,170,.24),rgba(255,255,255,.04)); --n2-edge:rgba(255,150,190,.30);
   --cA-bg:rgba(61,220,151,.14); --cA:#6ee8b2; --cG-bg:rgba(255,197,61,.14); --cG:#ffd36b; --cI-bg:rgba(156,134,255,.18); --cI:#bcaeff;
@@ -113,18 +113,19 @@ h3{font-size:14px;margin:18px 0 6px;font-weight:800}
 .sub{color:var(--muted);font-size:14px;margin:6px 0 4px}
 .empty{color:var(--muted);padding:14px 0;margin:0}
 .big-empty{padding:48px 8px;text-align:center}
-.lM{color:var(--Mt);font-weight:800} .lC{color:var(--Ct);font-weight:800}
+.lM{color:var(--Mt);font-weight:800} .lC{color:var(--Ct);font-weight:800} .lR{color:var(--Rt);font-weight:800}
 
 /* ---------- HOY: el color del local, con brillo de cristal ---------- */
 .hero{color:#fff}
 .hero .big{font-size:48px;line-height:1.05;margin:2px 0}
 .hl{margin:0;font-size:14px;opacity:.96}
 .hs{margin:4px 0 0;font-size:14px;opacity:.96}
-.hero.M,.hero.C{position:relative;overflow:hidden;margin:0 -16px;padding:14px 16px 24px;border-radius:0 0 34px 34px;
+.hero.M,.hero.C,.hero.R{position:relative;overflow:hidden;margin:0 -16px;padding:14px 16px 24px;border-radius:0 0 34px 34px;
   box-shadow:inset 0 -1px 0 rgba(255,255,255,.28),0 16px 34px rgba(80,40,30,.20)}
 .hero.M{background:radial-gradient(80% 110% at 100% 0%,rgba(255,196,150,.60),transparent 62%),linear-gradient(160deg,#d9481f,#b8330e 82%)}
 .hero.C{background:radial-gradient(80% 110% at 100% 0%,rgba(150,245,228,.55),transparent 62%),linear-gradient(160deg,#0a8196,#066477 82%)}
-.hero.M>*,.hero.C>*{position:relative}
+.hero.R{background:radial-gradient(80% 110% at 100% 0%,rgba(255,222,176,.55),transparent 62%),linear-gradient(160deg,#9b6634,#70441d 82%)}
+.hero.M>*,.hero.C>*,.hero.R>*{position:relative}
 .locs{display:flex;gap:6px;margin-bottom:16px;border-radius:99px;padding:4px;
   background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   border:1px solid rgba(255,255,255,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
@@ -269,7 +270,7 @@ button.mrow.sel{background:var(--glass-hi);box-shadow:inset 4px 0 0 var(--ink),v
 .col.sel b{color:var(--ink)}
 .meter{height:10px;background:var(--soft);border-radius:99px;overflow:hidden;margin:6px 0 4px;flex:1}
 .meter i{display:block;height:100%;border-radius:99px;background:var(--ink)}
-.meter i.mM{background:linear-gradient(90deg,#ee7a4a,var(--M))} .meter i.mC{background:linear-gradient(90deg,#2ab4c9,var(--C))}
+.meter i.mM{background:linear-gradient(90deg,#ee7a4a,var(--M))} .meter i.mC{background:linear-gradient(90deg,#2ab4c9,var(--C))} .meter i.mR{background:linear-gradient(90deg,#c48a52,var(--R))}
 
 /* ---------- inventario ---------- */
 .sk{margin-top:16px;padding:16px;border:1px solid var(--edge);border-radius:26px;background:var(--glass-fill);box-shadow:var(--spec),var(--lift)}
@@ -288,6 +289,15 @@ input,select{width:100%;padding:12px;border-radius:14px;border:1px solid var(--e
 select{appearance:auto}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (min-width:420px){.grid4{grid-template-columns:repeat(4,1fr)}}
+/* Roble: lugares de exhibición */
+.sk.space .big small{font-size:18px;font-weight:700;color:var(--muted,#5a5d65)}
+.slots{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.slots i{width:34px;height:42px;border-radius:12px;border:2px dashed color-mix(in srgb,var(--Rt) 45%,transparent)}
+.slots i.n{border:0;background:linear-gradient(160deg,#c48a52,var(--R));box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.slots i.p{border:0;background:linear-gradient(160deg,#ffe48f,#f1b02f);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.slots i.over{outline:2px solid #d92d20;outline-offset:2px}
 button.primary{width:100%;padding:15px;border:0;border-radius:18px;background:var(--solid);color:var(--on-solid);font-size:17px;font-weight:800;margin-top:14px;
   box-shadow:var(--solid-shadow)}
 button.ghost{padding:10px 16px;border-radius:99px;border:1px solid var(--ghost-edge);background:var(--glass-hi);color:var(--ink);font-size:14px;font-weight:600;flex:none;min-height:40px;
@@ -315,6 +325,7 @@ button.danger{color:var(--danger);border-color:var(--danger)}
 #ticket .cobrar{border:0;border-radius:16px;padding:15px 24px;font-size:18px;font-weight:900;color:#fff;
   background:linear-gradient(180deg,#e2572b,var(--M));box-shadow:inset 0 1.5px 0 rgba(255,255,255,.4),0 6px 14px rgba(0,0,0,.28)}
 #ticket.C .cobrar{background:linear-gradient(180deg,#14a9bf,var(--C))}
+#ticket.R .cobrar{background:linear-gradient(180deg,#a8743f,var(--R))}
 
 /* ---------- barra de abajo: cápsula de cristal con burbuja que se desliza ---------- */
 nav{position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;max-width:560px;margin:0 auto;

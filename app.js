@@ -3,17 +3,18 @@
 /* =========================================================
    GORV - ventas, inventario y método AGI
    Dos calidades (normal y premium) y tres lugares:
-   Bodega, Morelos (M) y Carrillo (C).
+   Bodega, Morelos (M), Carrillo (C) y Roble (R).
    Datos guardados en el navegador (localStorage).
    IMPORTANTE: la llave KEY no cambia, así los datos de
    versiones anteriores se conservan.
    ========================================================= */
 
 const KEY = 'richiscaps_v2';
-const LOC = { bodega: 'Bodega', M: 'Morelos', C: 'Carrillo' };
+const LOC = { bodega: 'Bodega', M: 'Morelos', C: 'Carrillo', R: 'Roble' };
 const TIPO = { normal: 'Normal', premium: 'Premium' };
 const TIPOS = ['normal', 'premium'];
-const LOCS = ['bodega', 'M', 'C'];
+const LOCS = ['bodega', 'M', 'C', 'R'];
+const STORES = ['M', 'C', 'R'];                // locales donde se vende
 const KINDS = ['one', 'two', 'prem'];          // tipos de venta: gorra $89 · promo 2 por $170 · premium $185
 const KEYK = { n1: 'one', n2: 'two', p: 'prem' };   // apartado de la pantalla Hoy -> tipo de venta
 
@@ -22,6 +23,7 @@ const DEFAULTS = {
     season: 'normal',          // 'normal' | 'alta'
     theme: 'auto',             // 'auto' (el del celular) | 'light' | 'dark'
     low: 5,                    // aviso de inventario bajo (total por calidad)
+    cap: { R: 5 },             // espacio para exhibir gorras (Roble es chico)
     prices: {
       normal: { one: 89, two: 170 },
       alta:   { one: 95, two: 180 },
@@ -34,8 +36,8 @@ const DEFAULTS = {
     }
   },
   stock: {
-    normal:  { bodega: 0, M: 0, C: 0 },
-    premium: { bodega: 0, M: 0, C: 0 }
+    normal:  { bodega: 0, M: 0, C: 0, R: 0 },
+    premium: { bodega: 0, M: 0, C: 0, R: 0 }
   },
   costs: { normal: 28, premium: 60 },   // costo promedio por gorra
   sales: [],   // {id,tk,date,loc,kind,k,n,pm,qty,total,A,G,I,cost,season}  kind: one|two|prem · k: cuántas de ese tipo
@@ -112,7 +114,8 @@ const dateLabel = s => { const d = parseD(s); return `${d.getDate()} ${MES[d.get
 const longDate = s => { const d = parseD(s); return `${DIAS[d.getDay()]} ${d.getDate()} ${MES[d.getMonth()]}`; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const num = id => parseFloat($(id).value) || 0;
-const tot = t => S.stock[t].bodega + S.stock[t].M + S.stock[t].C;
+const tot = t => LOCS.reduce((a, l) => a + S.stock[t][l], 0);
+const inLoc = l => TIPOS.reduce((a, t) => a + S.stock[t][l], 0);   // gorras en un lugar (normal + premium)
 const plural = (n, a, b) => n === 1 ? a : b;
 
 let toastTimer;
@@ -247,7 +250,7 @@ function hoy() {
   const daySales = S.sales.filter(s => s.date === d);
   const dayAll = sum(daySales);
   const mine = daySales.filter(s => s.loc === saleLoc).sort((a, b) => b.id.localeCompare(a.id));
-  const other = saleLoc === 'M' ? 'C' : 'M';
+  const others = STORES.filter(l => l !== saleLoc).map(l => `${LOC[l]} ${money(sum(daySales.filter(s => s.loc === l)).total)}`).join(', ');
   const haveN = S.stock.normal[saleLoc], haveP = S.stock.premium[saleLoc];
   clampCart();
 
@@ -275,12 +278,11 @@ function hoy() {
   return `
     <section class="hero ${saleLoc}">
       <div class="locs">
-        <button class="${saleLoc === 'M' ? 'on' : ''}" onclick="setLoc('M')">Morelos</button>
-        <button class="${saleLoc === 'C' ? 'on' : ''}" onclick="setLoc('C')">Carrillo</button>
+        ${STORES.map(l => `<button class="${saleLoc === l ? 'on' : ''}" onclick="setLoc('${l}')">${LOC[l]}</button>`).join('')}
       </div>
       <p class="hl">${saleDate ? 'Ventas del ' + dateLabel(saleDate) : 'Registrado hoy'}</p>
       <div class="big num">${money(dayAll.total)}</div>
-      <p class="hs">${dayAll.qty} ${plural(dayAll.qty, 'gorra', 'gorras')} · aquí ${money(sum(mine).total)}, en ${LOC[other]} ${money(sum(daySales.filter(s => s.loc === other)).total)}</p>
+      <p class="hs">${dayAll.qty} ${plural(dayAll.qty, 'gorra', 'gorras')} · aquí ${money(sum(mine).total)} · ${others}</p>
     </section>
 
     ${saleDate ? `<div class="alert red"><b>Estás registrando un día anterior.</b>
@@ -333,7 +335,7 @@ function renderTicket() {
 /* =========================================================
    PANTALLA: PANEL  (solo meses)
    Un mes a la vez, con el AGI de cada tipo de venta,
-   en total y por local (Morelos y Carrillo).
+   en total y por local (Morelos, Carrillo y Roble).
    ========================================================= */
 const curMo = () => pmo || monthKey(todayStr());
 
@@ -437,8 +439,7 @@ function panel() {
     </section>
 
     ${scope('all', 'AGI por tipo de venta', list, false)}
-    ${scope('M', 'Morelos', list.filter(s => s.loc === 'M'), true)}
-    ${scope('C', 'Carrillo', list.filter(s => s.loc === 'C'), true)}
+    ${STORES.map(l => scope(l, LOC[l], list.filter(s => s.loc === l), true)).join('')}
 
     <section class="list"><h2>Últimos 6 meses</h2>${chartMonths(mo)}</section>
 
@@ -450,7 +451,7 @@ function panel() {
    ========================================================= */
 function stock() {
   const card = t => {
-    const s = S.stock[t], T = tot(t), isLow = T <= S.settings.low, mx = Math.max(s.bodega, s.M, s.C, 1);
+    const s = S.stock[t], T = tot(t), isLow = T <= S.settings.low, mx = Math.max(...LOCS.map(l => s[l]), 1);
     return `<section class="sk ${isLow ? 'low' : ''}">
       <div class="skh"><div><h2>${TIPO[t]}</h2><div class="big num">${T}</div></div>
         ${isLow ? '<span class="pill red">Poco inventario</span>' : ''}</div>
@@ -464,11 +465,22 @@ function stock() {
       <small>${dateLabel(b.date)} · ${money(b.unitCost)} c/u</small></div>
       ${i === 0 ? `<button class="ghost danger" onclick="undoBuy()">Deshacer</button>` : ''}</div>`).join('') : '';
 
-  const fix = t => `<h3>${TIPO[t]}</h3><div class="grid3">
+  const fix = t => `<h3>${TIPO[t]}</h3><div class="grid4">
     ${LOCS.map(l => `<div><label>${LOC[l]}</label><input id="c_${t}_${l}" type="number" inputmode="numeric" value="${S.stock[t][l]}"></div>`).join('')}</div>`;
+
+  const space = l => {                     // locales con poco espacio (Roble): cuántas están exhibidas
+    const cap = S.settings.cap[l], n = inLoc(l), full = n >= cap;
+    return `<section class="sk space">
+      <div class="skh"><div><h2 class="l${l}">${LOC[l]} · exhibidas</h2><div class="big num">${n}<small> de ${cap}</small></div></div>
+        ${n > cap ? '<span class="pill red">Sin espacio</span>' : full ? '<span class="pill">Lleno</span>' : ''}</div>
+      <div class="slots" aria-label="${n} de ${cap} lugares ocupados">${Array.from({ length: Math.max(cap, n) }, (_, i) =>
+        `<i class="${i < S.stock.premium[l] ? 'p' : i < n ? 'n' : ''}${i >= cap ? ' over' : ''}"></i>`).join('')}</div>
+      <p class="sub">${S.stock.normal[l]} ${plural(S.stock.normal[l], 'normal', 'normales')} · ${S.stock.premium[l]} premium${n < cap ? ` · caben ${cap - n} más` : ''}</p></section>`;
+  };
 
   return `
     ${card('normal')}${card('premium')}
+    ${Object.keys(S.settings.cap).map(space).join('')}
     ${acc('Mover gorras entre lugares', `
       <p class="sub">Por ejemplo, de Bodega a Morelos cuando surtes el local.</p>
       <label>Calidad</label><select id="mvT">${tipoOptions()}</select>
@@ -510,8 +522,7 @@ function ventas() {
   const head = `<div class="filters">
       <div><label>Local</label><select onchange="setHist('loc',this.value)">
         <option value="all">Todos</option>
-        <option value="M" ${hist.loc === 'M' ? 'selected' : ''}>Morelos</option>
-        <option value="C" ${hist.loc === 'C' ? 'selected' : ''}>Carrillo</option></select></div>
+        ${STORES.map(l => `<option value="${l}" ${hist.loc === l ? 'selected' : ''}>${LOC[l]}</option>`).join('')}</select></div>
       <div><label>Mes</label><select onchange="setHist('month',this.value)">
         <option value="all">Todos</option>
         ${months.map(m => `<option value="${m}" ${hist.month === m ? 'selected' : ''}>${monthLabel(m)}</option>`).join('')}</select></div>
@@ -570,6 +581,8 @@ function ajustes() {
       </div>
       <label>Avisar inventario bajo desde (gorras en total por calidad)</label>
       <input id="low" type="number" inputmode="numeric" value="${st.low}">
+      <label>Espacio en Roble (gorras que caben exhibidas)</label>
+      <input id="capR" type="number" inputmode="numeric" value="${st.cap.R}">
       <button class="primary" onclick="saveSettings()">Guardar ajustes</button>
     </section>
     <section class="list"><h2>Tus datos</h2>
@@ -658,6 +671,9 @@ function mover() {
   if (from === to) return toast('Elige lugares distintos');
   if (q < 1) return toast('Escribe cuántas gorras');
   if (q > S.stock[t][from]) return toast(`Solo hay ${S.stock[t][from]} en ${LOC[from]}`);
+  const cap = S.settings.cap[to];
+  if (cap !== undefined && inLoc(to) + q > cap &&
+    !confirm(`En ${LOC[to]} caben ${cap} gorras y ya hay ${inLoc(to)}. ¿Mover ${q} de todos modos?`)) return;
   S.stock[t][from] -= q; S.stock[t][to] += q;
   save(); toast(`${q} ${TIPO[t].toLowerCase()} a ${LOC[to]}`); render();
 }
@@ -704,6 +720,7 @@ function saveSettings() {
   st.agi.normal = { A: num('#nA'), I: num('#nI') };
   st.agi.premium = { A: num('#pA'), I: num('#pI') };
   st.low = Math.max(0, Math.floor(num('#low')));
+  st.cap.R = Math.max(1, Math.floor(num('#capR')) || 1);
   save(); toast('Ajustes guardados'); render();
 }
 
@@ -775,7 +792,8 @@ function txt(c, s, x, y, o = {}) {
 async function summaryBlob(mo) {
   const list = S.sales.filter(s => monthKey(s.date) === mo), o = sum(list), mp = o.total - o.cost;
   const W = 1080, PAD = 56, IW = W - PAD * 2;
-  const scopes = [['all', 'Por tipo de venta', list, '#0c0c0d'], ['M', 'Morelos', list.filter(s => s.loc === 'M'), '#c93a12'], ['C', 'Carrillo', list.filter(s => s.loc === 'C'), '#08788d']];
+  const LCOL = { M: '#c93a12', C: '#08788d', R: '#8a5a2c' };
+  const scopes = [['all', 'Por tipo de venta', list, '#0c0c0d'], ...STORES.map(l => [l, LOC[l], list.filter(s => s.loc === l), LCOL[l]])];
   const TILE = { one: ['#ffffff', '#f1eef6', '#0c0c0d'], two: ['#ffd6e5', '#ffb4cd', '#a21b50'], prem: ['#ffe48f', '#f1b02f', '#2b1d00'] };
   const [logo, ...ic] = await Promise.all([loadImg('icon-192.png'), ...KINDS.map(k => svgImg(k, TILE[k][2]))]);
   const icons = { one: ic[0], two: ic[1], prem: ic[2] };
@@ -842,7 +860,7 @@ async function summaryBlob(mo) {
     txt(c, money(v), x + cw / 2, 682, { s: 56, w: 900, i: 1, c: col, a: 'center' });
   });
 
-  // una tabla por ámbito: los dos locales juntos, Morelos y Carrillo
+  // una tabla por ámbito: los locales juntos, Morelos, Carrillo y Roble
   const COL = { u: 462, t: 636, A: 760, G: 878, I: 996 };
   scopes.forEach(([key, title, sl, color], n) => {
     const y0 = TOP + n * SC_H, so = sum(sl), smp = so.total - so.cost;

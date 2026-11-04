@@ -144,6 +144,51 @@ await prueba('no deja vender lo que no hay (premium en Carrillo = 0)', async () 
   assert.ok(bloqueado);
 });
 
+/* ---------- Roble: tercer local con poco espacio ---------- */
+
+await prueba('Roble: los datos viejos (sin Roble) se cargan con Roble en 0 y espacio para 5', async () => {
+  const { ctx, page, errors } = await openApp(browser, url);       // seed() no trae Roble
+  const d = await page.evaluate(() => ({ n: S.stock.normal.R, p: S.stock.premium.R, cap: S.settings.cap.R }));
+  await ctx.close();
+  assert.deepEqual(d, { n: 0, p: 0, cap: 5 });
+  assert.deepEqual(errors, []);
+});
+
+await prueba('Roble: mover gorras de Bodega, vender ahí y verlo en el panel y el historial', async () => {
+  const { ctx, page, errors } = await openApp(browser, url);
+  await page.evaluate(() => go('stock'));
+  await page.click('details:has-text("Mover gorras") summary').catch(() => {});
+  await page.evaluate(() => { $('#mvT').value = 'normal'; $('#mvFrom').value = 'bodega'; $('#mvTo').value = 'R'; $('#mvQty').value = '4'; mover(); });
+  const exhibidas = (await page.textContent('.sk.space .big')).replace(/\s+/g, ' ').trim();
+  await page.evaluate(() => go('hoy'));
+  await page.click('.locs button:has-text("Roble")');
+  const heroRoble = await page.isVisible('.hero.R');
+  await cobrar(page, N1, 1);
+  await page.evaluate(() => go('panel'));
+  const roble = await celda(page, 'R', 'one', 'amt');
+  await page.evaluate(() => go('ventas'));
+  const filtro = await page.locator('.filters select >> nth=0').evaluate(s => [...s.options].map(o => o.textContent));
+  const d = await readData(page);
+  await ctx.close();
+  assert.equal(exhibidas, '4 de 5');
+  assert.ok(heroRoble);
+  assert.equal(roble, 89);
+  assert.deepEqual(filtro, ['Todos', 'Morelos', 'Carrillo', 'Roble']);
+  assert.deepEqual([d.stock.normal.bodega, d.stock.normal.R, d.sales[0].loc], [16, 3, 'R']);
+  assert.deepEqual(errors, []);
+});
+
+await prueba('Roble: avisa antes de pasar el espacio y deja cancelar', async () => {
+  const { ctx, page } = await openApp(browser, url);
+  await page.evaluate(() => go('stock'));
+  let aviso = '';
+  page.once('dialog', dlg => { aviso = dlg.message(); dlg.dismiss(); });
+  const r = await page.evaluate(() => { $('#mvT').value = 'normal'; $('#mvFrom').value = 'bodega'; $('#mvTo').value = 'R'; $('#mvQty').value = '6'; mover(); return [S.stock.normal.R, S.stock.normal.bodega]; });
+  await ctx.close();
+  assert.ok(aviso.includes('caben 5'), aviso);
+  assert.deepEqual(r, [0, 20]);                                // al cancelar no se mueve nada
+});
+
 /* ---------- 2 y 3. Panel: solo meses, AGI por tipo y por local ---------- */
 
 await prueba('el panel solo muestra meses (sin semana, sin "todo", sin últimos 7 días)', async () => {
@@ -190,7 +235,7 @@ await prueba('panel: cada local tiene los tres tipos, también cuando no vendió
   await page.evaluate(() => go('panel'));
   const n = await page.locator('.kind').count();
   await ctx.close();
-  assert.equal(n, 9);                                         // 3 tipos × (total, Morelos, Carrillo)
+  assert.equal(n, 12);                                        // 3 tipos × (total, Morelos, Carrillo, Roble)
 });
 
 await prueba('panel: se cambia de mes con las flechas y el margen es del mes', async () => {
@@ -241,7 +286,7 @@ await prueba('los 3 tipos tienen su icono de gorra (Hoy, Panel y Ventas)', async
   const ventas = await page.locator('.srow .tile svg').count();
   await ctx.close();
   assert.deepEqual(hoy, [['t-one', true], ['t-two', true], ['t-prem', true]]);
-  assert.equal(panel, 9);
+  assert.equal(panel, 12);                                    // 3 tipos × (total y 3 locales)
   assert.equal(ventas, 8);
 });
 
