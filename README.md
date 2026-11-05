@@ -1,18 +1,18 @@
 # Gorv
 
-App web instalable (PWA) para llevar un negocio de gorras de dos calidades (normal y premium) y dos locales (Morelos y Carrillo), con el método **AGI**: cada venta se reparte sola en **A**horro, **G**anancia e **I**nversión.
+App web instalable (PWA) para llevar un negocio de gorras de dos calidades (normal y premium) y tres locales (Morelos, Carrillo y Roble), con el método **AGI**: cada venta se reparte sola en **A**horro, **G**anancia e **I**nversión.
 
 No tiene servidores ni cuentas: los datos viven en el celular y funciona sin internet.
 
 ## Pantallas
 
 - **Hoy**: eliges el local y registras lo vendido en tres apartados separados: **Gorra $89**, **Promo 2 por $170** y **Premium $185**. Cada uno muestra su reparto AGI y se guarda como su propia venta. Con *Deshacer* y vibración corta al cobrar.
-- **Panel**: solo por meses (flechas para cambiar de mes). Ingresos y margen del mes, y el AGI (Ahorro, Ganancia, Inversión) de cada tipo de venta: en total y por separado en Morelos y Carrillo. Gráfica de los últimos 6 meses.
-- **Inventario**: existencias por calidad en Bodega, Morelos y Carrillo; mover gorras entre lugares, registrar compras (costo promedio) y corregir el conteo.
+- **Panel**: solo por meses (flechas para cambiar de mes). Ingresos y margen del mes, y el AGI (Ahorro, Ganancia, Inversión) de cada tipo de venta: en total y por separado en Morelos, Carrillo y Roble. Gráfica de los últimos 6 meses.
+- **Inventario**: existencias por calidad en Bodega, Morelos, Carrillo y Roble; en Roble, cuántas gorras están exhibidas de las que caben (5 por defecto, se cambia en Ajustes); mover gorras entre lugares, registrar compras (costo promedio) y corregir el conteo.
 - **Ventas**: historial por día con filtros de local y mes.
 - **Ajustes**: precios (normal, temporada alta, premium), montos del AGI, respaldo y restauración, exportar a CSV.
 
-- **Resumen del mes**: en el Panel, *Compartir resumen del mes* genera una imagen (ingresos, margen, Ahorro/Ganancia/Inversión, y una tabla por tipo de venta para los dos locales juntos, Morelos y Carrillo). Se comparte por WhatsApp o se guarda en el celular, sin internet.
+- **Resumen del mes**: en el Panel, *Compartir resumen del mes* genera una imagen (ingresos, margen, Ahorro/Ganancia/Inversión, y una tabla por tipo de venta para los locales juntos, Morelos, Carrillo y Roble). Se comparte por WhatsApp o se guarda en el celular, sin internet.
 - **Entrada**: al abrir la app, el logo aparece con un resorte y un brillo, y se puede saltar tocando la pantalla.
 
 Estilo **liquid glass** en claro y oscuro (*Ajustes > Apariencia*: automático, claro u oscuro): fondo con manchas de color, tarjetas de vidrio con reflejo, vidrio esmerilado (blur) en el encabezado, la barra de abajo y el ticket, iconos de gorra para cada tipo de venta y una burbuja animada que se desliza en la barra al cambiar de sección.

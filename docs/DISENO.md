@@ -6,7 +6,7 @@ Todo está en `style.css`; los valores de abajo son los mismos que las variables
 ## Principios
 
 1. **Primero el dinero y el dedo.** La pantalla *Hoy* se usa de pie, con una mano y con prisa: números enormes, botones de 50 px, cobrar en un toque y *Deshacer* a la vista.
-2. **Un solo acento por local.** Morelos es naranja y Carrillo es turquesa. Al cambiar de local cambia toda la cabecera, así es imposible vender en el equivocado sin darse cuenta.
+2. **Un solo acento por local.** Morelos es naranja, Carrillo es turquesa y Roble es café roble. Al cambiar de local cambia toda la cabecera, así es imposible vender en el equivocado sin darse cuenta.
 3. **El AGI siempre con sus tres colores.** Verde = Ahorro, amarillo = Ganancia, morado = Inversión. No se usan para nada más.
 4. **Cristal con propósito (liquid glass).** Las superficies son de vidrio esmerilado sobre un fondo con manchas de color (durazno, rosa, menta, lila y limón; nada de azul). El blur real se usa solo donde pasa contenido por debajo: encabezado, barra de abajo, ticket y avisos. Lo demás es vidrio translúcido sin blur, para cuidar la batería. La jerarquía sigue saliendo del tamaño y del peso de la letra.
 5. **El movimiento acompaña, no estorba.** Cortito, con salida suave, y se apaga solo si el celular tiene activado "reducir movimiento".
@@ -19,6 +19,7 @@ Todo está en `style.css`; los valores de abajo son los mismos que las variables
 | Texto secundario | `--muted` | `#5a5d65` | 5.5:1 o más, también sobre el cristal |
 | Morelos (texto blanco encima) | `--M` | `#c93a12` | 5.1:1 (antes 4.4:1, no llegaba a AA) |
 | Carrillo (texto blanco encima) | `--C` | `#08788d` | 5.1:1 |
+| Roble (texto blanco encima) | `--R` | `#8a5a2c` | 5.9:1 |
 | Ahorro | `--A` | `#14935f` | 3.9:1 (solo en puntos, barras y dona, que piden 3:1) |
 | Ganancia | `--G` | `#c98a00` | 2.9:1 (solo en puntos y barras; la cifra siempre va escrita al lado) |
 | Inversión | `--I` | `#6d4aff` | 5.2:1 |
@@ -38,6 +39,7 @@ Es el mismo diseño con otras variables (`html[data-theme="dark"]` en `style.css
 | Texto secundario | `#5a5d65` | `#a8a6b3` |
 | Morelos como texto (`--Mt`) | `#c93a12` | `#ff8d62` |
 | Carrillo como texto (`--Ct`) | `#08788d` | `#4fd0e3` |
+| Roble como texto (`--Rt`) | `#8a5a2c` | `#e3ad74` |
 | Ahorro · Ganancia · Inversión | `#14935f` · `#c98a00` · `#6d4aff` | `#3ddc97` · `#ffc53d` · `#9c86ff` |
 | Peligro | `#cf2a37` | `#ff6b76` |
 
