@@ -1,86 +1,71 @@
 """
-La leyenda del ajedrez y los granos de trigo
-Video animado vertical (1080x1920, 30 fps) con voz narrada.
+El tablero que arruinó a un rey: video vertical en 3D con voz narrada, en el estilo de los videos
+explicativos de TikTok e Instagram (escenas 3D con cámara en movimiento, subtítulos palabra por palabra
+arriba y etiquetas en "píldora").
+
+Etapas:
+  1. Voz: Piper (voz mexicana masculina "ald") frase por frase, con tono más grave; da los tiempos de cada palabra.
+  2. 3D: three.js en Chromium sin pantalla (escena3d/), un JPEG por cuadro.
+  3. Composición: subtítulos, etiquetas, música y efectos con Pillow, numpy y ffmpeg.
 
 Uso:
-    python3 generar.py --modelo /ruta/es_MX-claude-high.onnx --salida leyenda-ajedrez.mp4
-
-Requiere: piper-tts, numpy, Pillow, ffmpeg y las fuentes Inter / DejaVu / Noto Color Emoji.
+    npm install
+    python3 generar.py --modelo es_MX-ald-medium.onnx --salida leyenda-ajedrez.mp4
 """
 import argparse
 import json
 import math
 import os
 import random
+import shutil
 import subprocess
 import sys
-import tempfile
 import wave
 from functools import lru_cache
-from multiprocessing import Pool
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-W, H, FPS = 1080, 1920, 30
-SR = 44100
-GAP = 0.45      # silencio entre frases (s)
-INTRO = 0.4     # silencio inicial (s)
-OUTRO = 1.6     # cola final (s)
+AQUI = os.path.dirname(os.path.abspath(__file__))
+BUILD = os.path.join(AQUI, "build")
+W, H, FPS, SR = 1080, 1920, 30, 44100
 
 # ---------------------------------------------------------------- guion
-# (escena, texto para la voz, texto de subtítulos)
+# Cada escena es una lista de frases. *palabra* = palabra clave (azul); palabra{cue} = marca de tiempo
+# que usan las animaciones. Los números se leen con DICHO.
 GUION = [
-    ("gancho",
-     "Un rey estuvo a punto de perder su reino entero... por culpa de un tablero de ajedrez y unos granos de trigo.",
-     "Un rey estuvo a punto de perder su reino entero... por culpa de un tablero de ajedrez y unos granos de trigo."),
-    ("india",
-     "Cuenta la leyenda que, hace siglos, en la India, un sabio llamado Sissa inventó un juego de guerra para su rey: el ajedrez.",
-     "Cuenta la leyenda que, hace siglos, en la India, un sabio llamado Sissa inventó un juego de guerra para su rey: el ajedrez."),
-    ("rey",
-     "Al rey le fascinó tanto, que le dijo: pide lo que quieras, y será tuyo.",
-     "Al rey le fascinó tanto, que le dijo: «Pide lo que quieras, y será tuyo»."),
-    ("pedido",
-     "Sissa sonrió, y pidió algo que parecía ridículo. Un grano de trigo en la primera casilla. Dos, en la segunda. Cuatro, en la tercera. Ocho, en la cuarta. Y así, duplicando, hasta llegar a la casilla sesenta y cuatro.",
-     "Sissa sonrió, y pidió algo que parecía ridículo. Un grano de trigo en la primera casilla. Dos, en la segunda. Cuatro, en la tercera. Ocho, en la cuarta. Y así, duplicando, hasta llegar a la casilla 64."),
-    ("risa",
-     "El rey soltó una carcajada. ¿Solo eso? ¡Que le traigan un costal de trigo!",
-     "El rey soltó una carcajada. ¿Solo eso? ¡Que le traigan un costal de trigo!"),
-    ("c10",
-     "Pero mira lo que pasa. En la casilla diez, ya hay quinientos doce granos. Apenas un puñado.",
-     "Pero mira lo que pasa. En la casilla 10 ya hay 512 granos. Apenas un puñado."),
-    ("c20",
-     "En la casilla veinte, más de medio millón. El costal ya no alcanza.",
-     "En la casilla 20, más de medio millón. El costal ya no alcanza."),
-    ("c32",
-     "En la casilla treinta y dos, más de dos mil millones de granos. Una cosecha entera... y apenas vamos a la mitad del tablero.",
-     "En la casilla 32, más de 2 mil millones de granos. Una cosecha entera... y apenas vamos a la mitad del tablero."),
-    ("c64",
-     "Y en la última casilla, la sesenta y cuatro, más de nueve trillones de granos. Sumando todo el tablero, son dieciocho trillones.",
-     "Y en la última casilla, la 64, más de 9 trillones de granos. Sumando todo el tablero, son 18 trillones."),
-    ("mil",
-     "Eso es más trigo del que el mundo entero produciría en cerca de mil años de cosechas.",
-     "Eso es más trigo del que el mundo entero produciría en cerca de mil años de cosechas."),
-    ("expo",
-     "Esa es la trampa del crecimiento exponencial. Al principio, parece que no pasa nada... y de pronto, lo devora todo.",
-     "Esa es la trampa del crecimiento exponencial. Al principio parece que no pasa nada... y de pronto, lo devora todo."),
-    ("final",
-     "Dicen que el rey no pudo pagar, y que nombró a Sissa su consejero más sabio. Porque en sesenta y cuatro casillas, cabe algo más grande que un reino.",
-     "Dicen que el rey no pudo pagar, y que nombró a Sissa su consejero más sabio. Porque en 64 casillas cabe algo más grande que un reino."),
-    ("cta",
-     "Si te voló la cabeza, compártelo con alguien que juegue ajedrez.",
-     "Si te voló la cabeza, compártelo con alguien que juegue ajedrez. ♞"),
+    ("gancho", ["Este tablero de ajedrez", "casi deja en la *ruina* a un *rey*."]),
+    ("pago", ["Cuenta la leyenda que su inventor", "le pidió al rey un pago muy *extraño*:"]),
+    ("granos", ["*un{g1} grano* de trigo en la primera casilla,", "*dos*{g2} en la segunda,", "*cuatro*{g3} en la tercera,",
+                "*ocho*{g4} en la cuarta..."]),
+    ("duplicar", ["y así, *duplicando*,", "hasta la casilla *64*."]),
+    ("risa", ["El rey aceptó de inmediato.", "Le pareció *casi nada*."]),
+    ("c10", ["Pero en la casilla 10", "ya hay *512 granos*."]),
+    ("c20", ["En la 20,", "más de *medio millón*."]),
+    ("c32", ["En la 32,", "más de *dos mil millones*...", "y apenas vamos a la *mitad*{mitad} del tablero."]),
+    ("c64", ["Y en la última casilla,", "habría más de *nueve trillones* de granos."]),
+    ("total", ["En total, unos *18 trillones*.", "Más trigo del que el mundo entero", "cosecharía en *mil{mil} años*."]),
+    ("expo", ["Eso es el *crecimiento exponencial*:", "al principio no se nota...", "y de{boom} repente, es *imposible* de detener."]),
+    ("final", ["Por eso dicen que el rey...", "*nunca*{cae} pudo pagar."]),
 ]
+DICHO = {"64": "sesenta y cuatro", "10": "diez", "512": "quinientos doce", "20": "veinte", "32": "treinta y dos",
+         "18": "dieciocho"}
 
-# ---------------------------------------------------------------- estilo
-FONT_DIRS = ["/usr/share/fonts/opentype/inter/", "/usr/share/fonts/truetype/dejavu/",
-             "/usr/share/fonts/truetype/noto/"]
-GOLD = (245, 196, 82)
-GOLD2 = (255, 228, 150)
-CREAM = (250, 242, 225)
-INK = (12, 10, 28)
-SQ_LIGHT = (233, 210, 160)
-SQ_DARK = (150, 100, 60)
+# Etiquetas ("píldoras"): escena -> lista de (cue o segundos desde el inicio, texto, subtexto)
+PILDORAS = {
+    "granos": [("g1", "1 grano", None), ("g2", "2 granos", None), ("g3", "4 granos", None), ("g4", "8 granos", None)],
+    "duplicar": [(0.5, "×2 en cada casilla", None)],
+    "c10": [(0.6, "512 granos", "casilla 10")],
+    "c20": [(0.5, "524 288 granos", "casilla 20")],
+    "c32": [(0.6, "2 147 483 648 granos", "casilla 32"), ("mitad", "2 147 483 648 granos", "la mitad del tablero")],
+    "c64": [(0.5, "9 223 372 036 854 775 808", "granos en la casilla 64")],
+    "total": [(0.3, "18 446 744 073 709 551 615", "granos en todo el tablero"), ("mil", "≈ 1 000 años", "de cosecha mundial de trigo")],
+}
+
+# ---------------------------------------------------------------- tipografía
+FONT_DIRS = ["/usr/share/fonts/opentype/inter/", "/usr/share/fonts/truetype/dejavu/"]
+WHITE = (255, 255, 255)
+BLUE = (128, 176, 255)
 
 
 def font_path(name):
@@ -91,49 +76,18 @@ def font_path(name):
     raise FileNotFoundError(name)
 
 
-@lru_cache(maxsize=256)
-def F(size, name="InterDisplay-Black.otf"):
+@lru_cache(maxsize=64)
+def F(size, name):
     return ImageFont.truetype(font_path(name), int(size))
 
 
-@lru_cache(maxsize=64)
-def emoji(ch, size):
-    f = ImageFont.truetype(font_path("NotoColorEmoji.ttf"), 109)
-    im = Image.new("RGBA", (160, 160), (0, 0, 0, 0))
-    ImageDraw.Draw(im).text((80, 80), ch, font=f, embedded_color=True, anchor="mm")
-    im = im.crop(im.getbbox())
-    s = size / max(im.size)
-    return im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.LANCZOS)
-
-
-@lru_cache(maxsize=32)
-def glyph(ch, size, color=CREAM, outline=GOLD):
-    """Pieza de ajedrez (Unicode) con relleno y contorno."""
-    f = F(size, "DejaVuSans.ttf")
-    pad = size // 4
-    im = Image.new("RGBA", (int(size * 1.4) + pad, int(size * 1.4) + pad), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    c = (im.width // 2, im.height // 2)
-    d.text(c, ch, font=f, fill=color + (255,), anchor="mm",
-           stroke_width=max(2, size // 40), stroke_fill=outline + (255,))
-    return im.crop(im.getbbox())
-
-
-def paste(base, im, cx, cy, alpha=1.0, scale=1.0, rot=0.0):
-    if scale != 1.0:
-        im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))), Image.BILINEAR)
-    if rot:
-        im = im.rotate(rot, resample=Image.BICUBIC, expand=True)
-    if alpha < 1.0:
-        a = im.getchannel("A").point(lambda v: int(v * max(0.0, alpha)))
-        im = im.copy()
-        im.putalpha(a)
-    base.alpha_composite(im, (int(cx - im.width / 2), int(cy - im.height / 2)))
-
-
-# ---------------------------------------------------------------- easing
 def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
+
+
+def spring(x):
+    x = clamp(x)
+    return 1 - math.exp(-7 * x) * math.cos(9 * x)
 
 
 def ease_out(x):
@@ -141,494 +95,30 @@ def ease_out(x):
     return 1 - (1 - x) ** 3
 
 
-def ease_io(x):
-    x = clamp(x)
-    return 3 * x * x - 2 * x * x * x
+# ---------------------------------------------------------------- texto del guion
+def parse_frase(frase):
+    """Devuelve [(palabra_visible, es_clave, cue)] y el texto para la voz."""
+    out, clave = [], False
+    for raw in frase.split():
+        cue = None
+        if "{" in raw:
+            i, j = raw.index("{"), raw.index("}")
+            cue = raw[i + 1:j]
+            raw = raw[:i] + raw[j + 1:]
+        empieza = raw.startswith("*")
+        if empieza:
+            clave = True
+        txt = raw.replace("*", "")
+        out.append([txt, clave, cue])
+        if raw.rstrip(".,:;!?…").endswith("*"):
+            clave = False
+    voz = " ".join(DICHO.get(w.strip(".,:;"), w.strip(".,:;")) + w[len(w.rstrip(".,:;")):] for w, _, _ in out)
+    return out, voz
 
 
-def spring(x):
-    """Rebote: 0 -> 1 con sobrepaso."""
-    x = clamp(x)
-    return 1 - math.exp(-6 * x) * math.cos(10 * x)
-
-
-def prog(t, a, b):
-    return clamp((t - a) / max(1e-6, b - a))
-
-
-def text_center(d, xy, s, size, fill=CREAM, name="InterDisplay-Black.otf", stroke=0, stroke_fill=INK, anchor="mm"):
-    d.text(xy, s, font=F(size, name), fill=fill, anchor=anchor, stroke_width=stroke, stroke_fill=stroke_fill)
-
-
-def text_layer(s, size, fill=CREAM, name="InterDisplay-Black.otf", stroke=0, stroke_fill=INK):
-    f = F(size, name)
-    l, t, r, b = f.getbbox(s, stroke_width=stroke)
-    im = Image.new("RGBA", (r - l + 20, b - t + 20), (0, 0, 0, 0))
-    ImageDraw.Draw(im).text((10 - l, 10 - t), s, font=f, fill=fill, stroke_width=stroke, stroke_fill=stroke_fill)
-    return im
-
-
-def fmt_int(n):
-    return f"{n:,}".replace(",", " ")
-
-
-# ---------------------------------------------------------------- fondo
-def make_background():
-    y, x = np.mgrid[0:H, 0:W].astype(np.float32)
-    cx, cy = W / 2, H * 0.42
-    r = np.sqrt((x - cx) ** 2 + ((y - cy) * 0.75) ** 2) / (H * 0.7)
-    r = np.clip(r, 0, 1)
-    c0 = np.array([48, 30, 86], np.float32)   # violeta real
-    c1 = np.array([8, 8, 24], np.float32)     # casi negro
-    img = c0[None, None, :] * (1 - r[..., None]) + c1[None, None, :] * r[..., None]
-    # patrón de tablero muy tenue
-    tile = 135
-    chk = (((x // tile) + (y // tile)) % 2).astype(np.float32)
-    img += chk[..., None] * 5
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    return Image.fromarray(img, "RGB").convert("RGBA")
-
-
-RNG = random.Random(7)
-DUST = [(RNG.random() * W, RNG.random() * H, RNG.uniform(1.5, 4.5), RNG.uniform(10, 40), RNG.random() * 6.28)
-        for _ in range(70)]
-
-
-def draw_dust(img, T):
-    d = ImageDraw.Draw(img)
-    for x, y, r, sp, ph in DUST:
-        yy = (y - T * sp) % H
-        xx = x + 18 * math.sin(T * 0.6 + ph)
-        a = int(90 + 80 * math.sin(T * 1.7 + ph))
-        d.ellipse((xx - r, yy - r, xx + r, yy + r), fill=GOLD2 + (max(0, a),))
-
-
-# ---------------------------------------------------------------- tablero
-def board_layer(size, values=None, lit_upto=0, heat=False, highlight=None, glow_t=0.0, show_counts=False):
-    """values: función i(0..63) -> intensidad 0..1 para el modo calor."""
-    pad = int(size * 0.045)
-    im = Image.new("RGBA", (size + 2 * pad, size + 2 * pad), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle((0, 0, im.width - 1, im.height - 1), radius=pad, fill=(70, 40, 22, 255),
-                        outline=GOLD + (255,), width=4)
-    sq = size / 8
-    for i in range(64):
-        row, col = divmod(i, 8)
-        # recorrido en serpentina desde abajo a la izquierda, como se cuenta la leyenda
-        r = 7 - row
-        c = col if row % 2 == 0 else 7 - col
-        x0, y0 = pad + c * sq, pad + r * sq
-        base = SQ_LIGHT if (r + c) % 2 == 0 else SQ_DARK
-        col_rgb = base
-        if heat and i < lit_upto and values is not None:
-            v = values(i)
-            hot = (255, int(220 - 160 * v), int(90 - 80 * v))
-            mix = 0.35 + 0.65 * v
-            col_rgb = tuple(int(base[k] * (1 - mix) + hot[k] * mix) for k in range(3))
-        elif not heat and i < lit_upto:
-            col_rgb = tuple(min(255, int(b * 0.5 + g * 0.6)) for b, g in zip(base, GOLD2))
-        d.rectangle((x0, y0, x0 + sq, y0 + sq), fill=col_rgb + (255,))
-        if highlight is not None and i == highlight:
-            w = 6 + int(4 * math.sin(glow_t * 10))
-            d.rectangle((x0 + 2, y0 + 2, x0 + sq - 2, y0 + sq - 2), outline=(255, 255, 255, 255), width=w)
-        if show_counts and i < lit_upto:
-            n = 2 ** i
-            rr = random.Random(i)
-            k = min(n, 16)
-            for _ in range(k):
-                gx = x0 + sq * rr.uniform(0.2, 0.8)
-                gy = y0 + sq * rr.uniform(0.25, 0.85)
-                d.ellipse((gx - sq * 0.05, gy - sq * 0.075, gx + sq * 0.05, gy + sq * 0.075),
-                          fill=(200, 150, 40, 255), outline=(120, 80, 20, 255))
-    return im
-
-
-def square_center(size, i):
-    pad = int(size * 0.045)
-    sq = size / 8
-    row, col = divmod(i, 8)
-    r = 7 - row
-    c = col if row % 2 == 0 else 7 - col
-    return pad + c * sq + sq / 2, pad + r * sq + sq / 2
-
-
-# ---------------------------------------------------------------- escenas
-# Cada escena: fn(layer, t, dur, seg) dibuja sobre una capa RGBA transparente.
-
-def sc_gancho(L, t, dur, seg):
-    d = ImageDraw.Draw(L)
-    # lluvia de trigo
-    for k in range(26):
-        rr = random.Random(k)
-        x = rr.uniform(60, W - 60)
-        y = (rr.uniform(-H, 0) + t * rr.uniform(380, 700)) % (H + 200) - 100
-        paste(L, emoji("🌾", int(rr.uniform(50, 90))), x, y, alpha=0.55, rot=rr.uniform(-40, 40) + t * 30 * (rr.random() - .5))
-    # corona que cae y se ladea
-    p = spring(t / 1.0)
-    cy = -200 + (560 + 200) * p
-    tilt = 12 * math.sin(t * 2.2) if t > 1.0 else 0
-    paste(L, emoji("👑", 330), W / 2, cy, rot=tilt)
-    lines = ["EL TABLERO", "QUE ARRUINÓ", "A UN REY"]
-    for k, s in enumerate(lines):
-        a = prog(t, 0.6 + 0.35 * k, 1.0 + 0.35 * k)
-        if a <= 0:
-            continue
-        sc = 0.4 + 0.6 * spring(a)
-        col = GOLD if k == 1 else CREAM
-        paste(L, text_layer(s, 128, fill=col, stroke=6), W / 2, 800 + k * 150, alpha=min(1, a * 2), scale=sc)
-    # mini tablero inclinado
-    a = prog(t, 2.0, 2.8)
-    if a > 0:
-        b = board_layer(320)
-        paste(L, b, W / 2, 1440 + 30 * math.sin(t * 2), alpha=ease_out(a), scale=0.7 + 0.3 * ease_out(a), rot=8 * math.sin(t))
-
-
-def palace(d, base_y, color):
-    # silueta de palacio con cúpulas
-    for cx, w, h in [(W / 2, 360, 300), (W / 2 - 300, 200, 200), (W / 2 + 300, 200, 200)]:
-        d.rectangle((cx - w / 2, base_y - h, cx + w / 2, base_y), fill=color)
-        d.ellipse((cx - w * 0.42, base_y - h - w * 0.55, cx + w * 0.42, base_y - h + w * 0.3), fill=color)
-        d.polygon([(cx - 10, base_y - h - w * 0.5), (cx + 10, base_y - h - w * 0.5), (cx, base_y - h - w * 0.8)], fill=color)
-        for k in range(-1, 2):
-            ax = cx + k * w * 0.28
-            d.rounded_rectangle((ax - 22, base_y - h * 0.55, ax + 22, base_y - 10), radius=22, fill=(30, 18, 50, 255))
-    for cx in (W / 2 - 470, W / 2 + 470):
-        d.rectangle((cx - 28, base_y - 420, cx + 28, base_y), fill=color)
-        d.ellipse((cx - 45, base_y - 470, cx + 45, base_y - 390), fill=color)
-
-
-def sc_india(L, t, dur, seg):
-    d = ImageDraw.Draw(L)
-    # sol
-    a = ease_out(t / 1.2)
-    sun_y = 760 - 120 * a
-    for r, al in ((260, 40), (200, 70), (150, 255)):
-        d.ellipse((W / 2 - r, sun_y - r, W / 2 + r, sun_y + r), fill=(255, 170, 70, int(al * a)))
-    palace(d, 1080, (24, 14, 40, 255))
-    d.rectangle((0, 1080, W, 1130), fill=(24, 14, 40, 255))
-    # etiqueta
-    tag = text_layer("INDIA · HACE SIGLOS", 54, fill=INK, name="Inter-Black.otf")
-    pa = prog(t, 0.3, 0.9)
-    if pa > 0:
-        bx = Image.new("RGBA", (tag.width + 50, tag.height + 24), (0, 0, 0, 0))
-        ImageDraw.Draw(bx).rounded_rectangle((0, 0, bx.width - 1, bx.height - 1), radius=bx.height // 2, fill=GOLD + (255,))
-        bx.alpha_composite(tag, (25, 12))
-        paste(L, bx, W / 2, 260, alpha=pa, scale=0.6 + 0.4 * spring(pa))
-    # piezas que se levantan
-    pieces = "♜♞♝♛♚♝♞♜"
-    t0 = dur * 0.55
-    for k, ch in enumerate(pieces):
-        pp = prog(t, t0 + k * 0.12, t0 + k * 0.12 + 0.6)
-        if pp <= 0:
-            continue
-        x = 95 + k * 127
-        y = 1330 - 120 * spring(pp) + 8 * math.sin(t * 3 + k)
-        paste(L, glyph(ch, 130, color=(40, 24, 60), outline=GOLD), x, y, alpha=pp)
-    pa = prog(t, t0 + 1.2, t0 + 1.8)
-    if pa > 0:
-        paste(L, text_layer("AJEDREZ", 150, fill=GOLD, stroke=6), W / 2, 1490, alpha=pa, scale=0.5 + 0.5 * spring(pa))
-    # Sissa
-    ps = prog(t, 1.4, 2.0)
-    if ps > 0:
-        paste(L, emoji("🧙", 190), 230, 880 - 30 * spring(ps), alpha=ps)
-        paste(L, text_layer("Sissa", 60, fill=CREAM, name="InterDisplay-Bold.otf", stroke=4), 230, 1030, alpha=ps)
-
-
-def bubble(L, text, cx, cy, p, w=820):
-    if p <= 0:
-        return
-    lay = text_layer(text, 74, fill=INK, name="InterDisplay-ExtraBold.otf")
-    bw, bh = max(w, lay.width + 80), lay.height + 80
-    b = Image.new("RGBA", (bw, bh + 60), (0, 0, 0, 0))
-    d = ImageDraw.Draw(b)
-    d.rounded_rectangle((0, 0, bw - 1, bh), radius=60, fill=CREAM + (255,), outline=GOLD + (255,), width=6)
-    d.polygon([(bw * 0.42, bh - 3), (bw * 0.55, bh - 3), (bw * 0.45, bh + 55)], fill=CREAM + (255,))
-    b.alpha_composite(lay, ((bw - lay.width) // 2, (bh - lay.height) // 2))
-    paste(L, b, cx, cy, alpha=min(1, p * 2), scale=0.5 + 0.5 * spring(p))
-
-
-def sc_rey(L, t, dur, seg):
-    d = ImageDraw.Draw(L)
-    # rayos de luz giratorios
-    for k in range(12):
-        ang = t * 0.25 + k * math.pi / 6
-        x1, y1 = W / 2 + 1400 * math.cos(ang), 1150 + 1400 * math.sin(ang)
-        x2, y2 = W / 2 + 1400 * math.cos(ang + 0.12), 1150 + 1400 * math.sin(ang + 0.12)
-        d.polygon([(W / 2, 1150), (x1, y1), (x2, y2)], fill=GOLD + (22,))
-    p = spring(t / 0.9)
-    bob = 12 * math.sin(t * 2.5)
-    paste(L, emoji("👑", 200), W / 2, 760 + bob - 40 * (1 - p), alpha=clamp(t / 0.4))
-    paste(L, glyph("♚", 520, color=(40, 24, 60), outline=GOLD), W / 2, 1150 + bob, scale=0.6 + 0.4 * p)
-    # el rey habla a partir de "le dijo"
-    i = seg["text"].find("pide")
-    ts = seg["speech"] * i / len(seg["text"]) - 0.2
-    bubble(L, "¡Pide lo que quieras!", W / 2, 400, prog(t, ts, ts + 0.5))
-
-
-def sc_pedido(L, t, dur, seg):
-    size = 820
-    txt = seg["text"]
-    marks = [txt.find(k) for k in ("Un grano", "Dos", "Cuatro", "Ocho", "Y así")]
-    tm = [seg["speech"] * m / len(txt) for m in marks]
-    lit = 0
-    for k in range(4):
-        if t >= tm[k]:
-            lit = k + 1
-    # barrido: duplicando hasta la 64
-    sweep = 0.0
-    if t >= tm[4]:
-        sweep = ease_io(prog(t, tm[4] + 0.6, seg["speech"]))
-        lit = max(lit, 4 + int(60 * sweep))
-    pb = ease_out(t / 0.8)
-    b = board_layer(size, lit_upto=lit, show_counts=True, highlight=(lit - 1 if lit else None), glow_t=t)
-    by = 980
-    paste(L, b, W / 2, by + 80 * (1 - pb), alpha=pb, scale=0.85 + 0.15 * pb)
-    # etiqueta de la casilla actual
-    if lit:
-        n = 2 ** (lit - 1)
-        label = f"Casilla {lit}:  {fmt_int(n)} grano" + ("s" if n > 1 else "")
-        col = GOLD if lit <= 4 else GOLD2
-        paste(L, text_layer(label, 70 if lit < 30 else 56, fill=col, stroke=5), W / 2, 420)
-        bx, byy = square_center(size, lit - 1)
-        ox = W / 2 - b.width / 2
-        oy = by - b.height / 2
-        if lit <= 4:
-            k = lit - 1
-            pp = prog(t, tm[k], tm[k] + 0.6)
-            paste(L, text_layer("×2" if k else "1", 90, fill=CREAM, stroke=6), ox + bx, oy + byy - 150 * ease_out(pp),
-                  alpha=1 - pp)
-    else:
-        paste(L, text_layer("Su pedido:", 80, fill=CREAM, stroke=5), W / 2, 420, alpha=prog(t, 0.5, 1.0))
-
-
-def sc_risa(L, t, dur, seg):
-    shake = 18 * math.sin(t * 28) * math.exp(-((t % 1.2) * 2.5))
-    paste(L, glyph("♚", 480, color=(40, 24, 60), outline=GOLD), W / 2 + shake, 1100, rot=shake * 0.4)
-    paste(L, emoji("😂", 170), W / 2 + 230, 820)
-    for k, (x, y, r) in enumerate([(250, 520, -14), (800, 450, 10), (540, 330, -4)]):
-        p = prog(t, 0.2 + k * 0.3, 0.6 + k * 0.3)
-        if p > 0:
-            paste(L, text_layer("JA", 150, fill=GOLD, stroke=7), x, y + 8 * math.sin(t * 9 + k), alpha=p,
-                  scale=0.4 + 0.6 * spring(p), rot=r)
-    i = seg["text"].find("¡Que")
-    ts = seg["speech"] * i / len(seg["text"])
-    p = prog(t, ts, ts + 0.5)
-    if p > 0:
-        paste(L, emoji("🧺", 200), W / 2 - 260, 1480 - 40 * spring(p), alpha=p)
-        paste(L, text_layer("1 costal", 90, fill=CREAM, stroke=6), W / 2 + 120, 1480, alpha=p, scale=0.6 + 0.4 * spring(p))
-
-
-CASILLAS = {"c10": (0, 10, "✋", "un puñado"), "c20": (10, 20, "🧺", "¡ya no alcanza!"),
-            "c32": (20, 32, "🚜", "una cosecha entera"), "c64": (32, 64, "🌍", "")}
-
-
-def sc_casilla(L, t, dur, seg):
-    a, b_, emo, caption = CASILLAS[seg["scene"]]
-    grow = ease_io(prog(t, 0.2, min(dur * 0.55, 3.2)))
-    cur = a + (b_ - a) * grow
-    lit = max(1, int(round(cur)))
-    size = 700
-    heat = lambda i: (i / 63) ** 1.3
-    b = board_layer(size, values=heat, lit_upto=lit, heat=True, highlight=lit - 1, glow_t=t)
-    paste(L, b, W / 2, 610)
-    # contador gigante
-    n = 2 ** (lit - 1)  # valor exacto de la casilla iluminada
-    paste(L, text_layer(f"CASILLA {lit}", 76, fill=GOLD, name="Inter-Black.otf"), W / 2, 1060)
-    s = fmt_int(n)
-    size_n = 150 if len(s) < 10 else (110 if len(s) < 16 else 64)
-    pulse = 1 + 0.04 * math.sin(t * 8) if lit == b_ else 1
-    paste(L, text_layer(s, size_n, fill=CREAM, stroke=7), W / 2, 1200, scale=pulse)
-    paste(L, text_layer("granos", 58, fill=CREAM, name="InterDisplay-Bold.otf"), W / 2, 1300)
-    p = prog(t, dur * 0.5, dur * 0.5 + 0.6)
-    if seg["scene"] != "c64" and p > 0:
-        tl = text_layer(caption, 74, fill=GOLD2, stroke=5)
-        paste(L, emoji(emo, 150), W / 2 - (tl.width + 170) / 2 + 75, 1460, alpha=p, scale=0.5 + 0.5 * spring(p))
-        paste(L, tl, W / 2 + 85, 1460, alpha=p)
-    if seg["scene"] == "c32":
-        q = prog(t, dur * 0.72, dur * 0.72 + 0.5)
-        if q > 0:
-            paste(L, text_layer("...y vamos a la MITAD", 64, fill=CREAM, stroke=5), W / 2, 1580, alpha=q)
-    if seg["scene"] == "c64":
-        i = seg["text"].find("Sumando")
-        ts = seg["speech"] * i / len(seg["text"])
-        q = prog(t, ts, ts + 0.7)
-        if q > 0:
-            box = Image.new("RGBA", (980, 250), (0, 0, 0, 0))
-            ImageDraw.Draw(box).rounded_rectangle((0, 0, 979, 249), radius=40, fill=GOLD + (255,))
-            tl = text_layer("TOTAL DEL TABLERO", 48, fill=INK, name="Inter-Black.otf")
-            box.alpha_composite(tl, ((980 - tl.width) // 2, 25))
-            tn = text_layer(fmt_int(2 ** 64 - 1), 62, fill=INK, name="InterDisplay-Black.otf")
-            box.alpha_composite(tn, ((980 - tn.width) // 2, 100))
-            paste(L, box, W / 2, 1520, alpha=q, scale=0.6 + 0.4 * spring(q))
-            paste(L, emoji("🤯", 150), W / 2 + 430, 1380, alpha=q, rot=10 * math.sin(t * 4))
-
-
-def sc_mil(L, t, dur, seg):
-    d = ImageDraw.Draw(L)
-    paste(L, emoji("🌍", 160), 200, 330, alpha=prog(t, 0, 0.5))
-    paste(L, text_layer("1 cuadrito =", 62, fill=CREAM, name="InterDisplay-Bold.otf"), 620, 290, alpha=prog(t, 0, 0.5))
-    paste(L, text_layer("1 año de cosecha mundial", 50, fill=GOLD2, name="InterDisplay-Bold.otf"), 620, 370, alpha=prog(t, 0, 0.5))
-    cols, rows = 25, 40
-    cs = 30
-    gx0 = (W - cols * cs) / 2
-    gy0 = 470
-    fill = ease_io(prog(t, 0.6, dur - 0.9))
-    k = int(1000 * fill)
-    for i in range(1000):
-        r, c = divmod(i, cols)
-        x, y = gx0 + c * cs, gy0 + r * cs
-        col = GOLD + (255,) if i < k else (255, 255, 255, 25)
-        d.rounded_rectangle((x + 3, y + 3, x + cs - 3, y + cs - 3), radius=5, fill=col)
-    years = text_layer(f"{k} años", 130, fill=CREAM, stroke=8)
-    paste(L, years, W / 2, gy0 + rows * cs / 2, scale=1 + 0.03 * math.sin(t * 9))
-
-
-def sc_expo(L, t, dur, seg):
-    d = ImageDraw.Draw(L)
-    x0, y0, x1, y1 = 140, 1450, 960, 380
-    d.line((x0, y0, x1 + 20, y0), fill=CREAM + (200,), width=6)
-    d.line((x0, y0, x0, y1 - 20), fill=CREAM + (200,), width=6)
-    text_center(d, (x1 - 60, y0 + 60), "casillas →", 44, fill=CREAM, name="InterDisplay-Bold.otf")
-    text_center(d, (x0 + 120, y1 - 50), "↑ granos", 44, fill=CREAM, name="InterDisplay-Bold.otf")
-    p = ease_io(prog(t, 0.3, dur * 0.8))
-    pts = []
-    N = 200
-    for i in range(int(N * p) + 1):
-        u = i / N
-        v = (2 ** (u * 20) - 1) / (2 ** 20 - 1)
-        pts.append((x0 + (x1 - x0) * u, y0 - (y0 - y1) * v))
-    if len(pts) > 1:
-        d.line(pts, fill=(255, 140, 60, 90), width=26, joint="curve")
-        d.line(pts, fill=GOLD + (255,), width=12, joint="curve")
-        hx, hy = pts[-1]
-        r = 22 + 6 * math.sin(t * 10)
-        d.ellipse((hx - r, hy - r, hx + r, hy + r), fill=(255, 255, 255, 255))
-    i = seg["text"].find("Al principio")
-    ts = seg["speech"] * i / len(seg["text"])
-    q = prog(t, ts, ts + 0.5)
-    if q > 0:
-        paste(L, text_layer("«no pasa nada»", 62, fill=CREAM, stroke=4), 420, y0 - 110, alpha=q)
-    j = seg["text"].find("de pronto")
-    tj = seg["speech"] * j / len(seg["text"])
-    q = prog(t, tj, tj + 0.4)
-    if q > 0:
-        paste(L, text_layer("¡BOOM!", 150, fill=GOLD, stroke=8), 640, 640, alpha=q, scale=0.4 + 0.8 * spring(q), rot=-8)
-    paste(L, text_layer("CRECIMIENTO EXPONENCIAL", 64, fill=GOLD2, name="Inter-Black.otf"), W / 2, 250, alpha=prog(t, 0, 0.6))
-
-
-def sc_final(L, t, dur, seg):
-    p = ease_out(t / 1.0)
-    b = board_layer(600)
-    paste(L, b, W / 2, 1150, alpha=p, rot=4 * math.sin(t * 0.8))
-    paste(L, emoji("👑", 220 + int(10 * math.sin(t * 3))), W / 2, 760, alpha=p)
-    paste(L, glyph("♚", 220, color=(40, 24, 60), outline=GOLD), 180, 1500, alpha=p)
-    paste(L, emoji("🧙", 210), W - 180, 1500, alpha=p)
-    i = seg["text"].find("Porque")
-    ts = seg["speech"] * i / len(seg["text"])
-    q = prog(t, ts, ts + 0.6)
-    if q > 0:
-        paste(L, text_layer("64 casillas", 110, fill=GOLD, stroke=6), W / 2, 330, alpha=q, scale=0.6 + 0.4 * spring(q))
-        paste(L, text_layer("> un reino", 110, fill=CREAM, stroke=6), W / 2, 470, alpha=q, scale=0.6 + 0.4 * spring(q))
-
-
-def sc_cta(L, t, dur, seg):
-    paste(L, glyph("♞", 420, color=(40, 24, 60), outline=GOLD), W / 2, 760 + 15 * math.sin(t * 2), rot=6 * math.sin(t * 1.5))
-    p = spring(prog(t, 0.2, 1.0))
-    paste(L, text_layer("¡COMPÁRTELO!", 130, fill=GOLD, stroke=7), W / 2, 1150, scale=0.5 + 0.5 * p + 0.03 * math.sin(t * 6))
-    paste(L, text_layer("con alguien que juegue ajedrez", 58, fill=CREAM, name="InterDisplay-Bold.otf"), W / 2, 1290,
-          alpha=prog(t, 0.6, 1.2))
-    paste(L, emoji("🔁", 120), W / 2 - 120, 1460, alpha=prog(t, 1.0, 1.5))
-    paste(L, emoji("♟️", 120), W / 2 + 120, 1460, alpha=prog(t, 1.2, 1.7))
-
-
-SCENES = {"gancho": sc_gancho, "india": sc_india, "rey": sc_rey, "pedido": sc_pedido, "risa": sc_risa,
-          "c10": sc_casilla, "c20": sc_casilla, "c32": sc_casilla, "c64": sc_casilla, "mil": sc_mil,
-          "expo": sc_expo, "final": sc_final, "cta": sc_cta}
-
-
-# ---------------------------------------------------------------- subtítulos
-def chunks(text, maxc=26):
-    words, out, cur = text.split(), [], ""
-    for w in words:
-        if cur and len(cur) + 1 + len(w) > maxc:
-            out.append(cur)
-            cur = w
-        else:
-            cur = (cur + " " + w).strip()
-        if cur.endswith((".", "?", "!", "...", "»", ":")) and len(cur) > 10:
-            out.append(cur)
-            cur = ""
-    if cur:
-        out.append(cur)
-    return out
-
-
-def caption_at(seg, t):
-    cs = seg["chunks"]
-    total = sum(len(c) for c in cs)
-    acc = 0
-    sp = seg["speech"]
-    for c in cs:
-        a = sp * acc / total
-        acc += len(c)
-        b = sp * acc / total
-        if t < b or c is cs[-1]:
-            return c, t - a
-    return None, 0
-
-
-def draw_caption(img, seg, t):
-    t -= seg.get("vo_off", 0.0)
-    if t < 0:
-        return
-    if t > seg["speech"] + 0.3:
-        return
-    c, ct = caption_at(seg, t)
-    if not c:
-        return
-    lay = text_layer(c, 66, fill=(255, 255, 255), name="InterDisplay-ExtraBold.otf", stroke=7, stroke_fill=(10, 8, 20))
-    sc = 0.85 + 0.15 * spring(ct / 0.25)
-    paste(img, lay, W / 2, 1745, scale=sc)
-
-
-# ---------------------------------------------------------------- render
-BG = None
-SEGS = None
-TOTAL = 0
-
-
-def init_worker(segs, total):
-    global BG, SEGS, TOTAL
-    BG = make_background()
-    SEGS = segs
-    TOTAL = total
-
-
-def render_frame(fi):
-    T = fi / FPS
-    img = BG.copy()
-    draw_dust(img, T)
-    for seg in SEGS:
-        if seg["start"] - 0.001 <= T < seg["end"] or (seg is SEGS[-1] and T >= seg["start"]):
-            t = T - seg["start"]
-            dur = seg["end"] - seg["start"]
-            L = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            SCENES[seg["scene"]](L, t, dur, seg)
-            fade = min(1.0, t / 0.25)
-            if seg is not SEGS[-1]:
-                fade = min(fade, (dur - t) / 0.2)
-            else:
-                fade = min(fade, (TOTAL - T) / 0.6)
-            if fade < 1:
-                L.putalpha(L.getchannel("A").point(lambda v: int(v * max(0, fade))))
-            img.alpha_composite(L)
-            draw_caption(img, seg, t)
-            break
-    # barra de progreso
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((60, 70, W - 60, 82), radius=6, fill=(255, 255, 255, 50))
-    d.rounded_rectangle((60, 70, 60 + (W - 120) * min(1, T / TOTAL), 82), radius=6, fill=GOLD + (255,))
-    return img.convert("RGB").tobytes()
+def peso(palabra):
+    base = palabra.strip(".,:;!?…")
+    return len(DICHO.get(base, base)) + 2
 
 
 # ---------------------------------------------------------------- audio
@@ -644,144 +134,372 @@ def read_wav(path):
     return x
 
 
-def tts(model, text, out):
-    subprocess.run([sys.executable, "-m", "piper", "-m", model, "-f", out, "--length-scale", "1.0",
-                    "--sentence-silence", "0.3"], input=text.encode(), check=True, capture_output=True)
+def write_wav(path, x):
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
+
+
+def tts(model, text, out, escala):
+    subprocess.run([sys.executable, "-m", "piper", "-m", model, "-f", out, "--length-scale", str(escala),
+                    "--sentence-silence", "0"], input=text.encode(), check=True, capture_output=True)
     x = read_wav(out)
-    # recorta silencios de los extremos
-    idx = np.where(np.abs(x) > 0.01)[0]
-    return x[max(0, idx[0] - 800): idx[-1] + 2000]
+    idx = np.where(np.abs(x) > 0.012)[0]
+    return x[max(0, idx[0] - 300): idx[-1] + 600]
+
+
+def voz_grave(src, dst, tono):
+    """Baja el tono conservando los formantes y le da cuerpo de locutor."""
+    af = (f"rubberband=pitch={tono}:formant=preserved:pitchq=quality,"
+          "equalizer=f=110:t=q:w=1.2:g=3,equalizer=f=3500:t=q:w=1.5:g=2,"
+          "acompressor=threshold=-20dB:ratio=3:attack=5:release=90:makeup=2")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-af", af, "-ar", str(SR), "-ac", "1", dst], check=True)
+
+
+def tone(f, d, v, decay):
+    tp = np.arange(int(d * SR)) / SR
+    return (v * np.exp(-tp * decay) * np.sin(2 * np.pi * f * tp)).astype(np.float32)
+
+
+def boom(v=0.55):
+    tp = np.arange(int(1.6 * SR)) / SR
+    f = 38 + 50 * np.exp(-tp * 9)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    return (v * np.exp(-tp * 2.6) * np.sin(ph)).astype(np.float32)
+
+
+def whoosh(d=0.45, v=0.1, seed=1):
+    rng = np.random.default_rng(seed)
+    x = rng.standard_normal(int(d * SR)).astype(np.float32)
+    x = np.convolve(x, np.ones(24) / 24, mode="same")
+    env = np.sin(np.linspace(0, np.pi, len(x))) ** 3
+    return v * 3 * x * env
+
+
+def tick(v=0.05, seed=0):
+    rng = np.random.default_rng(seed)
+    x = rng.standard_normal(int(0.05 * SR)).astype(np.float32)
+    x = x - np.convolve(x, np.ones(6) / 6, mode="same")  # paso alto sencillo
+    return v * x * np.exp(-np.arange(len(x)) / SR * 90)
 
 
 def music(total):
-    """Colchón musical generado: acordes Re menor - Si♭ - Fa - Do con pulso suave."""
+    """Colchón oscuro en Re menor con pulso, al estilo de los videos explicativos."""
     n = int(total * SR)
     t = np.arange(n) / SR
     out = np.zeros(n, np.float32)
-    prog_ = [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]]
-    bar = 4.0
+    acordes = [[50, 53, 57], [46, 50, 53], [43, 47, 50, 55], [45, 49, 52]]
+    bar = 2.4  # 100 bpm, compás de 4
     for i in range(int(total / bar) + 1):
-        a, b = int(i * bar * SR), min(n, int((i + 1) * bar * SR + SR))
+        a = int(i * bar * SR)
         if a >= n:
             break
+        b = min(n, int((i + 1) * bar * SR + 0.5 * SR))
         tt = t[a:b] - i * bar
-        env = np.clip(tt / 1.2, 0, 1) * np.clip((bar + 1 - tt) / 1.2, 0, 1)
-        for m in prog_[i % 4]:
+        env = np.clip(tt / 0.6, 0, 1) * np.clip((bar + 0.5 - tt) / 0.6, 0, 1)
+        ch = acordes[(i // 2) % 4]
+        for m in ch:
             f = 440 * 2 ** ((m - 69) / 12)
-            out[a:b] += 0.05 * env * (np.sin(2 * np.pi * f * tt) + 0.4 * np.sin(2 * np.pi * f * 1.003 * tt))
-        root = 440 * 2 ** ((prog_[i % 4][0] - 12 - 69) / 12)
-        out[a:b] += 0.07 * env * np.sin(2 * np.pi * root * tt)
-        # arpegio tipo pluck
-        for k in range(8):
-            m = prog_[i % 4][k % 3] + 12 * (k // 3 % 2)
-            f = 440 * 2 ** ((m - 69) / 12)
-            s = a + int(k * 0.5 * SR)
-            e = min(n, s + int(0.6 * SR))
-            if s >= n:
-                break
-            tp = np.arange(e - s) / SR
-            out[s:e] += 0.035 * np.exp(-tp * 6) * np.sin(2 * np.pi * f * tp)
-    fade = np.minimum(1, np.minimum(t / 2, (total - t) / 2.5))
+            out[a:b] += 0.03 * env * (np.sin(2 * np.pi * f * tt) + 0.5 * np.sin(2 * np.pi * f * 1.004 * tt + 1))
+        f0 = 440 * 2 ** ((ch[0] - 24 - 69) / 12)
+        for k in range(8):  # bajo en corcheas
+            s = a + int(k * bar / 8 * SR)
+            if s < n:
+                x = tone(f0, 0.25, 0.09, 9)
+                out[s:s + len(x)] += x[:max(0, min(len(x), n - s))]
+        for k in range(16):  # hi-hat en semicorcheas, suave
+            s = a + int(k * bar / 16 * SR)
+            if s < n:
+                x = tick(0.035 if k % 4 == 2 else 0.015, seed=k)
+                out[s:s + len(x)] += x[:max(0, min(len(x), n - s))]
+    fade = np.minimum(1, np.minimum(t / 1.0, (total - t) / 1.5))
     return out * fade
-
-
-def blip(f=880, d=0.12, v=0.25):
-    tp = np.arange(int(d * SR)) / SR
-    return (v * np.exp(-tp * 30) * np.sin(2 * np.pi * f * tp * (1 + 0.5 * np.exp(-tp * 40)))).astype(np.float32)
-
-
-def whoosh(d=0.5, v=0.12):
-    rng = np.random.default_rng(1)
-    x = rng.standard_normal(int(d * SR)).astype(np.float32)
-    x = np.convolve(x, np.ones(30) / 30, mode="same")
-    env = np.sin(np.linspace(0, np.pi, len(x))) ** 2
-    return v * x * env * 3
 
 
 def mix_in(buf, x, at):
     a = int(at * SR)
-    if a >= len(buf):
+    if a < 0 or a >= len(buf):
         return
     e = min(len(buf), a + len(x))
     buf[a:e] += x[:e - a]
 
 
+# ---------------------------------------------------------------- etapa 1: voz y línea de tiempo
+def etapa_audio(args):
+    os.makedirs(os.path.join(BUILD, "voz"), exist_ok=True)
+    INTRO, PAUSA_COMA, PAUSA_PUNTO, ENTRE_ESCENAS, COLA = 0.25, 0.10, 0.28, 0.30, 1.4
+    t = INTRO
+    segs, palabras, piezas = [], [], []
+    for si, (escena, frases) in enumerate(GUION):
+        seg = {"scene": escena, "start": 0.0 if si == 0 else t, "cues": {}}
+        for fi, frase in enumerate(frases):
+            ws, voz = parse_frase(frase)
+            x = tts(args.modelo, voz, os.path.join(BUILD, "voz", f"{si:02d}_{fi}.wav"), args.velocidad)
+            d = len(x) / SR
+            piezas.append((t, x))
+            pesos = [peso(w) for w, _, _ in ws]
+            tot, acc = sum(pesos), 0
+            for (w, clave, cue), p in zip(ws, pesos):
+                ini = t + d * acc / tot
+                acc += p
+                palabras.append({"w": w, "key": clave, "start": round(ini, 3), "end": round(t + d * acc / tot, 3),
+                                 "frase": f"{si}_{fi}", "scene": escena})
+                if cue:
+                    seg["cues"][cue] = round(ini, 3)
+            t += d
+            ult = frase.rstrip()[-1]
+            t += PAUSA_PUNTO if ult in ".:…" else PAUSA_COMA
+        t += ENTRE_ESCENAS
+        seg["end"] = t
+        segs.append(seg)
+    total = t + COLA
+    segs[-1]["end"] = total
+    n = int(total * SR) + SR
+    vo = np.zeros(n, np.float32)
+    for at, x in piezas:
+        mix_in(vo, x, at)
+    write_wav(os.path.join(BUILD, "voz_cruda.wav"), vo)
+    voz_grave(os.path.join(BUILD, "voz_cruda.wav"), os.path.join(BUILD, "voz.wav"), args.tono)
+    tl = {"fps": FPS, "total": total, "frames": int(total * FPS), "segments": segs, "words": palabras}
+    with open(os.path.join(BUILD, "timeline.json"), "w") as f:
+        json.dump(tl, f, ensure_ascii=False, indent=1)
+    for s in segs:
+        print(f"  {s['scene']:9s} {s['start']:6.2f} → {s['end']:6.2f}")
+    print(f"Duración: {total:.1f} s, {tl['frames']} cuadros")
+    return tl
+
+
+def mezcla(tl):
+    total = tl["total"]
+    vo = read_wav(os.path.join(BUILD, "voz.wav"))
+    n = int(total * SR)
+    vo = np.pad(vo, (0, max(0, n - len(vo))))[:n]
+    sfx = np.zeros(n, np.float32)
+    segs = {s["scene"]: s for s in tl["segments"]}
+    for i, s in enumerate(tl["segments"][1:]):
+        mix_in(sfx, whoosh(seed=i), s["start"] - 0.22)
+    for k in ("g1", "g2", "g3", "g4"):
+        at = segs["granos"]["cues"][k]
+        for j in range(2 ** (int(k[1]) - 1)):
+            mix_in(sfx, tone(1400 + 300 * random.Random(j).random(), 0.05, 0.06, 60), at + 0.35 + j * 0.05)
+    for at in (segs["c20"]["start"] + 0.3, segs["c32"]["start"] + 0.5, segs["c64"]["start"] + 0.2,
+               segs["total"]["cues"]["mil"], segs["expo"]["cues"]["boom"], segs["final"]["cues"]["cae"] + 1.0):
+        mix_in(sfx, boom(), at)
+    mus = music(total)
+    env = np.convolve(np.abs(vo), np.ones(4410) / 4410, mode="same")
+    duck = 1 - 0.5 * np.clip(env * 14, 0, 1)
+    out = vo * 1.0 + sfx + mus * duck * 1.3
+    out /= max(1.0, np.abs(out).max() / 0.95)
+    path = os.path.join(BUILD, "mezcla.wav")
+    write_wav(path, out)
+    return path
+
+
+# ---------------------------------------------------------------- etapa 3: composición
+def chunks(words):
+    """Agrupa palabras en bloques de subtítulo (máx. ~26 caracteres, sin cruzar frases)."""
+    out, cur = [], []
+    for w in words:
+        if cur and (cur[-1]["frase"] != w["frase"] or len(" ".join(x["w"] for x in cur + [w])) > 26):
+            out.append(cur)
+            cur = []
+        cur.append(w)
+    if cur:
+        out.append(cur)
+    return out
+
+
+def layout(chunk, size=68, maxw=900):
+    fb = F(size, "Inter-ExtraBold.otf")
+    sp = fb.getlength(" ")
+    lines, cur, cw = [], [], 0
+    for w in chunk:
+        ww = fb.getlength(w["w"])
+        if cur and cw + sp + ww > maxw:
+            lines.append((cur, cw))
+            cur, cw = [], 0
+        cur.append((w, ww))
+        cw += (sp if len(cur) > 1 else 0) + ww
+    lines.append((cur, cw))
+    pos = []
+    for li, (ln, lw) in enumerate(lines):
+        x = (W - lw) / 2
+        for w, ww in ln:
+            pos.append((w, x, li))
+            x += ww + sp
+    return pos, len(lines)
+
+
+def draw_caption(img, chunk, t):
+    size = 68
+    pos, nl = layout(chunk, size)
+    y0 = 360 - (nl - 1) * 42
+    lay = Image.new("RGBA", (W, 300), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    started = [w for w in chunk if t >= w["start"] - 0.03]
+    actual = started[-1] if started else None
+    for w, x, li in pos:
+        if t < w["start"] - 0.03:
+            continue
+        y = 40 + li * 84
+        p = clamp((t - w["start"] + 0.03) / 0.15)
+        if w["key"]:
+            fill, fnt = BLUE + (int(255 * p),), F(size, "Inter-ExtraBold.otf")
+        elif w is actual:
+            fill, fnt = WHITE + (int(255 * p),), F(size, "Inter-ExtraBold.otf")
+        else:
+            fill, fnt = (205, 210, 225, 170), F(size, "Inter-SemiBold.otf")
+        d.text((x, y + 10 * (1 - p)), w["w"], font=fnt, fill=fill)
+    sombra = Image.new("RGBA", lay.size, (0, 0, 0, 0))
+    sombra.putalpha(lay.getchannel("A").point(lambda v: int(v * 0.7)).filter(ImageFilter.GaussianBlur(10)))
+    img.alpha_composite(sombra, (0, int(y0 - 40)))
+    img.alpha_composite(lay, (0, int(y0 - 40)))
+
+
+@lru_cache(maxsize=32)
+def pill_image(text, size, bold):
+    f = F(size, "Inter-Bold.otf" if bold else "Inter-SemiBold.otf")
+    l, tp, r, b = f.getbbox(text)
+    padx, pady = int(size * 0.55), int(size * 0.32)
+    w, h = r - l + 2 * padx, int(size * 1.05) + 2 * pady
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=h // 2, fill=(18, 20, 34, 205 if bold else 185))
+    d.text((w / 2, h / 2), text, font=f, fill=WHITE, anchor="mm")
+    return im
+
+
+def paste_scaled(img, im, cx, cy, s, a=1.0):
+    if s != 1:
+        im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.BICUBIC)
+    if a < 1:
+        im = im.copy()
+        im.putalpha(im.getchannel("A").point(lambda v: int(v * a)))
+    img.alpha_composite(im, (int(cx - im.width / 2), int(cy - im.height / 2)))
+
+
+def pildoras_de(tl):
+    """Lista de (inicio, fin, texto, sub) en segundos absolutos."""
+    out = []
+    for s in tl["segments"]:
+        items = PILDORAS.get(s["scene"], [])
+        for i, (c, txt, sub) in enumerate(items):
+            a = s["cues"][c] + 0.15 if isinstance(c, str) else s["start"] + c
+            b = s["end"] - 0.05
+            if i + 1 < len(items):
+                c2 = items[i + 1][0]
+                b = s["cues"][c2] + 0.15 if isinstance(c2, str) else s["start"] + c2
+            out.append((a, b, txt, sub))
+    return out
+
+
+def draw_pill(img, pills, t):
+    for i, (a, b, txt, sub) in enumerate(pills):
+        if a <= t < b:
+            prev = pills[i - 1] if i else None
+            mismo = prev and abs(prev[1] - a) < 0.01 and prev[2] == txt
+            p = 1.0 if mismo else (t - a) / 0.35
+            s = 0.6 + 0.4 * spring(p)
+            alpha = clamp((t - a) / 0.12) if not mismo else 1
+            alpha = min(alpha, clamp((b - t) / 0.12))
+            size = 58 if len(txt) < 20 else 46
+            paste_scaled(img, pill_image(txt, size, True), W / 2, 1290, s, alpha)
+            if sub:
+                q = (t - a) / 0.35 if not (prev and prev[3] == sub and mismo) else 1
+                paste_scaled(img, pill_image(sub, 34, False), W / 2, 1385, 0.6 + 0.4 * spring(q - 0.25), min(alpha, clamp(q * 2)))
+            return
+
+
+def degradado():
+    g = np.zeros((H, W, 4), np.uint8)
+    y = np.arange(H)[:, None]
+    a = np.clip(1 - y / 820, 0, 1) ** 1.6 * 150 + np.clip((y - 1500) / 420, 0, 1) ** 1.5 * 110
+    g[..., 3] = a.astype(np.uint8)
+    yy, xx = np.mgrid[0:H, 0:W]
+    r = np.sqrt(((xx - W / 2) / (W * 0.75)) ** 2 + ((yy - H / 2) / (H * 0.75)) ** 2)
+    g[..., 3] = np.clip(g[..., 3] + np.clip(r - 0.55, 0, 1) * 220, 0, 255).astype(np.uint8)
+    return Image.fromarray(g, "RGBA")
+
+
+def componer(tl, salida, cuadros=None, solo_img=None):
+    frames_dir = os.path.join(BUILD, "frames")
+    words = tl["words"]
+    chs = chunks(words)
+    pills = pildoras_de(tl)
+    grad = degradado()
+
+    def frame(i):
+        t = i / FPS
+        p = os.path.join(frames_dir, f"{i:05d}.jpg")
+        img = Image.open(p).convert("RGBA")
+        img.alpha_composite(grad)
+        draw_pill(img, pills, t)
+        for k, ch in enumerate(chs):
+            fin = chs[k + 1][0]["start"] if k + 1 < len(chs) else ch[-1]["end"] + 0.6
+            if ch[-1]["frase"] != (chs[k + 1][0]["frase"] if k + 1 < len(chs) else None):
+                fin = min(fin, ch[-1]["end"] + 0.7)
+            if ch[0]["start"] - 0.03 <= t < fin:
+                draw_caption(img, ch, t)
+                break
+        return img.convert("RGB")
+
+    if solo_img:
+        return frame
+    audio = mezcla(tl)
+    n = tl["frames"]
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
+           "-i", "-", "-i", audio, "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+           "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", salida]
+    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    for i in range(n):
+        ff.stdin.write(frame(i).tobytes())
+        if i % 300 == 0:
+            print(f"  composición {i}/{n}", flush=True)
+    ff.stdin.close()
+    ff.wait()
+
+
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modelo", required=True, help="modelo de voz Piper (.onnx)")
-    ap.add_argument("--salida", default="leyenda-ajedrez.mp4")
-    ap.add_argument("--procesos", type=int, default=os.cpu_count() or 2)
-    ap.add_argument("--solo", type=int, default=0, help="renderiza solo los primeros N segundos (prueba)")
+    ap.add_argument("--modelo", required=True, help="voz Piper (.onnx); por defecto se usa es_MX-ald-medium")
+    ap.add_argument("--salida", default=os.path.join(AQUI, "leyenda-ajedrez.mp4"))
+    ap.add_argument("--velocidad", type=float, default=0.9, help="length-scale de Piper (menor = más rápido)")
+    ap.add_argument("--tono", type=float, default=0.86, help="factor de tono (menor = más grave)")
+    ap.add_argument("--procesos", type=int, default=3)
+    ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
+    ap.add_argument("--muestras", default="", help="segundos separados por coma para --etapa muestras")
     args = ap.parse_args()
 
-    tmp = tempfile.mkdtemp(prefix="ajedrez_")
-    segs, voices = [], []
-    tcur = INTRO
-    for k, (scene, say, cap) in enumerate(GUION):
-        x = tts(args.modelo, say, os.path.join(tmp, f"v{k}.wav"))
-        dur = len(x) / SR
-        seg = {"scene": scene, "text": cap, "speech": dur, "start": tcur, "end": tcur + dur + GAP,
-               "chunks": chunks(cap)}
-        seg["vo_at"] = tcur
-        seg["vo_off"] = 0.0
-        if k == 0:
-            seg["start"] = 0.0
-            seg["vo_off"] = INTRO
-        voices.append((seg["vo_at"], x))
-        segs.append(seg)
-        tcur = seg["end"]
-        print(f"  {scene:7s} {dur:5.2f}s")
-    total = tcur + OUTRO
-    segs[-1]["end"] = total
-    print(f"Duración total: {total:.1f}s")
-
-    # audio
-    n = int(total * SR) + SR
-    vo = np.zeros(n, np.float32)
-    for at, x in voices:
-        mix_in(vo, x * 0.95, at)
-    sfx = np.zeros(n, np.float32)
-    for s in segs[1:]:
-        mix_in(sfx, whoosh(), s["start"] - 0.2)
-    ped = next(s for s in segs if s["scene"] == "pedido")
-    for k, key in enumerate(("Un grano", "Dos", "Cuatro", "Ocho")):
-        at = ped["start"] + ped["speech"] * ped["text"].find(key) / len(ped["text"])
-        mix_in(sfx, blip(660 * 2 ** (k / 4)), at)
-    for s in segs:
-        if s["scene"] in CASILLAS:
-            a, b_, *_ = CASILLAS[s["scene"]]
-            g_end = min((s["end"] - s["start"]) * 0.55, 3.2)
-            for j in range(b_ - a):
-                mix_in(sfx, blip(500 + 25 * (a + j), 0.06, 0.12), s["start"] + 0.2 + (g_end - 0.2) * (j + 1) / (b_ - a))
-    mus = music(n / SR)
-    # ducking: baja la música cuando habla la voz
-    envv = np.convolve(np.abs(vo), np.ones(4410) / 4410, mode="same")
-    duck = 1 - 0.55 * np.clip(envv * 12, 0, 1)
-    mixx = vo + sfx + mus * duck * 1.4
-    mixx = mixx / max(1.0, np.abs(mixx).max() / 0.95)
-    wav_path = os.path.join(tmp, "mezcla.wav")
-    with wave.open(wav_path, "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(SR)
-        w.writeframes((mixx * 32767).astype(np.int16).tobytes())
-
-    frames = int((args.solo or total) * FPS)
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
-           "-i", "-", "-i", wav_path, "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", args.salida]
-    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    with Pool(args.procesos, initializer=init_worker, initargs=(segs, total)) as pool:
-        for i, fr in enumerate(pool.imap(render_frame, range(frames), chunksize=8)):
-            ff.stdin.write(fr)
-            if i % 150 == 0:
-                print(f"  cuadro {i}/{frames}", flush=True)
-    ff.stdin.close()
-    ff.wait()
-    with open(os.path.splitext(args.salida)[0] + ".json", "w") as f:
-        json.dump([{k: s[k] for k in ("scene", "start", "end")} for s in segs], f, indent=1)
-    print("Listo:", args.salida)
+    if args.etapa in ("todo", "audio"):
+        tl = etapa_audio(args)
+        shutil.rmtree(os.path.join(BUILD, "frames"), ignore_errors=True)
+    else:
+        tl = json.load(open(os.path.join(BUILD, "timeline.json")))
+    if args.etapa == "muestras":
+        ts = [float(x) for x in args.muestras.split(",")] if args.muestras else \
+            [s["start"] + (s["end"] - s["start"]) * 0.7 for s in tl["segments"]]
+        idx = [int(t * FPS) for t in ts]
+        for i in idx:
+            subprocess.run(["node", os.path.join(AQUI, "render.mjs"), os.path.join(BUILD, "frames"), str(tl["frames"]),
+                            str(FPS), "1", str(i), str(i + 1)], check=True)
+        fr = componer(tl, None, solo_img=True)
+        ims = [fr(i).resize((360, 640)) for i in idx]
+        cols = min(6, len(ims))
+        sheet = Image.new("RGB", (360 * cols, 640 * ((len(ims) + cols - 1) // cols)))
+        for k, im in enumerate(ims):
+            sheet.paste(im, ((k % cols) * 360, (k // cols) * 640))
+        sheet.save(os.path.join(BUILD, "muestras.jpg"), quality=88)
+        print("Muestras:", os.path.join(BUILD, "muestras.jpg"))
+        return
+    if args.etapa in ("todo", "3d"):
+        subprocess.run(["node", os.path.join(AQUI, "render.mjs"), os.path.join(BUILD, "frames"), str(tl["frames"]),
+                        str(FPS), str(args.procesos)], check=True)
+    if args.etapa in ("todo", "componer"):
+        componer(tl, args.salida)
+        print("Listo:", args.salida)
 
 
 if __name__ == "__main__":
