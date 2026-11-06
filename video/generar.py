@@ -4,13 +4,14 @@ explicativos de TikTok e Instagram (escenas 3D con cámara en movimiento, subtí
 arriba y etiquetas en "píldora").
 
 Etapas:
-  1. Voz: Piper (voz mexicana masculina "ald") frase por frase, con tono más grave; da los tiempos de cada palabra.
+  1. Voz: Kokoro (voz masculina en español "em_alex"), una escena completa por vez para que la entonación sea
+     natural; los tiempos de cada palabra salen de las pausas reales del audio.
   2. 3D: three.js en Chromium sin pantalla (escena3d/), un JPEG por cuadro.
   3. Composición: subtítulos, etiquetas, música y efectos con Pillow, numpy y ffmpeg.
 
 Uso:
     npm install
-    python3 generar.py --modelo es_MX-ald-medium.onnx --salida leyenda-ajedrez.mp4
+    python3 generar.py --kokoro carpeta/kokoro-multi-lang-v1_0
 """
 import argparse
 import json
@@ -34,13 +35,13 @@ W, H, FPS, SR = 1080, 1920, 30, 44100
 # Cada escena es una lista de frases. *palabra* = palabra clave (azul); palabra{cue} = marca de tiempo
 # que usan las animaciones. Los números se leen con DICHO.
 GUION = [
-    ("gancho", ["Este tablero de ajedrez", "casi deja en la *ruina* a un *rey*."]),
+    ("gancho", ["¿Sabías que este tablero de ajedrez", "casi deja en la *ruina* a un *rey*?"]),
     ("pago", ["Cuenta la leyenda que su inventor", "le pidió al rey un pago muy *extraño*:"]),
     ("granos", ["*un{g1} grano* de trigo en la primera casilla,", "*dos*{g2} en la segunda,", "*cuatro*{g3} en la tercera,",
                 "*ocho*{g4} en la cuarta..."]),
     ("duplicar", ["y así, *duplicando*,", "hasta la casilla *64*."]),
-    ("risa", ["El rey aceptó de inmediato.", "Le pareció *casi nada*."]),
-    ("c10", ["Pero en la casilla 10", "ya hay *512 granos*."]),
+    ("risa", ["El rey se rió y aceptó de inmediato.", "Le pareció *casi nada*."]),
+    ("c10", ["Pero mira: en la casilla 10", "ya hay *512 granos*."]),
     ("c20", ["En la 20,", "más de *medio millón*."]),
     ("c32", ["En la 32,", "más de *dos mil millones*...", "y apenas vamos a la *mitad*{mitad} del tablero."]),
     ("c64", ["Y en la última casilla,", "habría más de *nueve trillones* de granos."]),
@@ -142,19 +143,107 @@ def write_wav(path, x):
         w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
 
 
-def tts(model, text, out, escala):
-    subprocess.run([sys.executable, "-m", "piper", "-m", model, "-f", out, "--length-scale", str(escala),
-                    "--sentence-silence", "0"], input=text.encode(), check=True, capture_output=True)
-    x = read_wav(out)
-    idx = np.where(np.abs(x) > 0.012)[0]
-    return x[max(0, idx[0] - 300): idx[-1] + 600]
+class Kokoro:
+    """Voz neuronal Kokoro (onnx) con fonemas en español latino de espeak-ng."""
+
+    def __init__(self, carpeta, voz):
+        import onnxruntime as ort
+        self.sess = ort.InferenceSession(os.path.join(carpeta, "model.onnx"), providers=["CPUExecutionProvider"])
+        meta = self.sess.get_modelmeta().custom_metadata_map
+        nombres = meta["speaker_names"].split(",")
+        self.sr = int(meta.get("sample_rate", 24000))
+        self.vocab = {}
+        for line in open(os.path.join(carpeta, "tokens.txt"), encoding="utf-8"):
+            line = line.rstrip("\n")
+            if line:
+                tok, idx = line.rsplit(" ", 1)
+                self.vocab[tok if tok else " "] = int(idx)
+        voces = np.fromfile(os.path.join(carpeta, "voices.bin"), dtype=np.float32).reshape(len(nombres), 510, 1, 256)
+        self.estilo = voces[nombres.index(voz)]
+
+    @staticmethod
+    def fonemas(texto):
+        import re
+        out = ""
+        for parte in re.split(r"([.,;:!?¡¿…]+)", texto):
+            if not parte.strip():
+                continue
+            if re.fullmatch(r"[.,;:!?¡¿…]+", parte):
+                p = parte.replace("…", "...").replace("¡", "").replace("¿", "")
+                if p:
+                    out = out.rstrip() + p + " "
+                continue
+            ipa = subprocess.run(["espeak-ng", "-q", "--ipa", "-v", "es-419", parte], capture_output=True, text=True).stdout
+            out += " ".join(ipa.split()).replace("_", "") + " "
+        return out.strip()
+
+    def __call__(self, texto, velocidad):
+        ids = [self.vocab[c] for c in self.fonemas(texto) if c in self.vocab][:508]
+        audio = self.sess.run(None, {"tokens": np.array([[0] + ids + [0]], dtype=np.int64),
+                                     "style": self.estilo[len(ids)].astype(np.float32),
+                                     "speed": np.array([velocidad], dtype=np.float32)})[0]
+        x = np.asarray(audio, dtype=np.float32).reshape(-1)
+        n = int(len(x) * SR / self.sr)
+        x = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
+        idx = np.where(np.abs(x) > 0.01)[0]
+        return x[max(0, idx[0] - 400): idx[-1] + 1500]
 
 
-def voz_grave(src, dst, tono):
-    """Baja el tono conservando los formantes y le da cuerpo de locutor."""
-    af = (f"rubberband=pitch={tono}:formant=preserved:pitchq=quality,"
-          "equalizer=f=110:t=q:w=1.2:g=3,equalizer=f=3500:t=q:w=1.5:g=2,"
-          "acompressor=threshold=-20dB:ratio=3:attack=5:release=90:makeup=2")
+def silencios(x, minimo=0.06):
+    """Pausas internas (inicio, fin) en segundos."""
+    hop = int(0.01 * SR)
+    rms = np.sqrt(np.convolve(x ** 2, np.ones(hop) / hop, mode="same")[::hop])
+    umbral = 0.08 * np.percentile(rms, 95)
+    mudo = rms < umbral
+    out, i = [], 0
+    while i < len(mudo):
+        if mudo[i]:
+            j = i
+            while j < len(mudo) and mudo[j]:
+                j += 1
+            if i > 0 and j < len(mudo) and (j - i) * 0.01 >= minimo:
+                out.append((i * 0.01, j * 0.01))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def tiempos_palabras(frases, d, pausas):
+    """Reparte las palabras: los cortes entre frases caen en las pausas reales del audio."""
+    pesos_f = [sum(peso(w) for w, _, _ in ws) + 4 for ws in frases]
+    tot = sum(pesos_f)
+    esperado, acc = [], 0
+    for p in pesos_f[:-1]:
+        acc += p
+        esperado.append(d * acc / tot)
+    cortes, libres = [], list(pausas)
+    for e in esperado:
+        cand = [g for g in libres if not cortes or g[0] >= cortes[-1][1]]
+        if cand:
+            g = min(cand, key=lambda g: abs((g[0] + g[1]) / 2 - e))
+            if abs((g[0] + g[1]) / 2 - e) < 0.9:
+                cortes.append(g)
+                libres.remove(g)
+                continue
+        cortes.append((e - 0.05, e + 0.05))
+    limites = [0.0] + [c for g in cortes for c in g] + [d]
+    res = []
+    for k, ws in enumerate(frases):
+        a, b = limites[2 * k], limites[2 * k + 1]
+        pesos = [peso(w) for w, _, _ in ws]
+        tp, acc = sum(pesos), 0
+        res.append([])
+        for p in pesos:
+            res[-1].append((a + (b - a) * acc / tp, a + (b - a) * (acc + p) / tp))
+            acc += p
+    return res
+
+
+def voz_locutor(src, dst):
+    """Ecualización y compresión suaves: cuerpo de locutor sin cambiar el timbre."""
+    af = ("highpass=f=70,equalizer=f=140:t=q:w=1.2:g=2,equalizer=f=4000:t=q:w=1.5:g=1.5,"
+          "acompressor=threshold=-20dB:ratio=2.5:attack=5:release=100:makeup=1.5")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-af", af, "-ar", str(SR), "-ac", "1", dst], check=True)
 
 
@@ -229,29 +318,26 @@ def mix_in(buf, x, at):
 # ---------------------------------------------------------------- etapa 1: voz y línea de tiempo
 def etapa_audio(args):
     os.makedirs(os.path.join(BUILD, "voz"), exist_ok=True)
-    INTRO, PAUSA_COMA, PAUSA_PUNTO, ENTRE_ESCENAS, COLA = 0.25, 0.10, 0.28, 0.30, 1.4
+    tts = Kokoro(args.kokoro, args.voz)
+    INTRO, ENTRE_ESCENAS, COLA = 0.2, 0.22, 1.4
     t = INTRO
     segs, palabras, piezas = [], [], []
     for si, (escena, frases) in enumerate(GUION):
         seg = {"scene": escena, "start": 0.0 if si == 0 else t, "cues": {}}
-        for fi, frase in enumerate(frases):
-            ws, voz = parse_frase(frase)
-            x = tts(args.modelo, voz, os.path.join(BUILD, "voz", f"{si:02d}_{fi}.wav"), args.velocidad)
-            d = len(x) / SR
-            piezas.append((t, x))
-            pesos = [peso(w) for w, _, _ in ws]
-            tot, acc = sum(pesos), 0
-            for (w, clave, cue), p in zip(ws, pesos):
-                ini = t + d * acc / tot
-                acc += p
-                palabras.append({"w": w, "key": clave, "start": round(ini, 3), "end": round(t + d * acc / tot, 3),
+        parsed = [parse_frase(f) for f in frases]
+        texto = " ".join(v for _, v in parsed)
+        x = tts(texto, args.velocidad)          # la escena completa de una vez: entonación natural
+        write_wav(os.path.join(BUILD, "voz", f"{si:02d}_{escena}.wav"), x)
+        d = len(x) / SR
+        piezas.append((t, x))
+        tiempos = tiempos_palabras([ws for ws, _ in parsed], d, silencios(x))
+        for fi, (ws, _) in enumerate(parsed):
+            for (w, clave, cue), (a, b) in zip(ws, tiempos[fi]):
+                palabras.append({"w": w, "key": clave, "start": round(t + a, 3), "end": round(t + b, 3),
                                  "frase": f"{si}_{fi}", "scene": escena})
                 if cue:
-                    seg["cues"][cue] = round(ini, 3)
-            t += d
-            ult = frase.rstrip()[-1]
-            t += PAUSA_PUNTO if ult in ".:…" else PAUSA_COMA
-        t += ENTRE_ESCENAS
+                    seg["cues"][cue] = round(t + a, 3)
+        t += d + ENTRE_ESCENAS
         seg["end"] = t
         segs.append(seg)
     total = t + COLA
@@ -261,7 +347,7 @@ def etapa_audio(args):
     for at, x in piezas:
         mix_in(vo, x, at)
     write_wav(os.path.join(BUILD, "voz_cruda.wav"), vo)
-    voz_grave(os.path.join(BUILD, "voz_cruda.wav"), os.path.join(BUILD, "voz.wav"), args.tono)
+    voz_locutor(os.path.join(BUILD, "voz_cruda.wav"), os.path.join(BUILD, "voz.wav"))
     tl = {"fps": FPS, "total": total, "frames": int(total * FPS), "segments": segs, "words": palabras}
     with open(os.path.join(BUILD, "timeline.json"), "w") as f:
         json.dump(tl, f, ensure_ascii=False, indent=1)
@@ -451,7 +537,7 @@ def componer(tl, salida, cuadros=None, solo_img=None):
     n = tl["frames"]
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
            "-i", "-", "-i", audio, "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", salida]
+           "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", salida]
     ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(n):
         ff.stdin.write(frame(i).tobytes())
@@ -464,10 +550,10 @@ def componer(tl, salida, cuadros=None, solo_img=None):
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modelo", required=True, help="voz Piper (.onnx); por defecto se usa es_MX-ald-medium")
+    ap.add_argument("--kokoro", default=os.path.join(AQUI, "kokoro"), help="carpeta del modelo Kokoro v1.0 (model.onnx, voices.bin, tokens.txt)")
+    ap.add_argument("--voz", default="em_alex", help="voz de Kokoro: em_alex o em_santa (hombres, español)")
     ap.add_argument("--salida", default=os.path.join(AQUI, "leyenda-ajedrez.mp4"))
-    ap.add_argument("--velocidad", type=float, default=0.9, help="length-scale de Piper (menor = más rápido)")
-    ap.add_argument("--tono", type=float, default=0.86, help="factor de tono (menor = más grave)")
+    ap.add_argument("--velocidad", type=float, default=1.12, help="velocidad de la voz (1 = normal)")
     ap.add_argument("--procesos", type=int, default=3)
     ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
     ap.add_argument("--muestras", default="", help="segundos separados por coma para --etapa muestras")
