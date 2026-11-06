@@ -18,6 +18,7 @@ import json
 import math
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -178,15 +179,24 @@ class Kokoro:
         return out.strip()
 
     def __call__(self, texto, velocidad):
-        ids = [self.vocab[c] for c in self.fonemas(texto) if c in self.vocab][:508]
+        # el ". " inicial da a Kokoro un arranque: sin él se come la primera sílaba ("Cuenta" → "Penta")
+        ids = [self.vocab[c] for c in ". " + self.fonemas(texto) if c in self.vocab][:508]
         audio = self.sess.run(None, {"tokens": np.array([[0] + ids + [0]], dtype=np.int64),
                                      "style": self.estilo[len(ids)].astype(np.float32),
                                      "speed": np.array([velocidad], dtype=np.float32)})[0]
         x = np.asarray(audio, dtype=np.float32).reshape(-1)
         n = int(len(x) * SR / self.sr)
         x = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
-        idx = np.where(np.abs(x) > 0.01)[0]
-        return x[max(0, idx[0] - 400): idx[-1] + 1500]
+        # recorte suave: umbral bajo y margen amplio para no comerse los inicios de palabra suaves
+        env = np.convolve(np.abs(x), np.ones(220) / 220, mode="same")
+        idx = np.where(env > 0.004)[0]
+        ini = max(0, idx[0] - int(0.06 * SR))
+        fin = min(len(x), idx[-1] + int(0.06 * SR))
+        y = x[ini:fin].copy()
+        f = int(0.01 * SR)
+        y[:f] *= np.linspace(0, 1, f)
+        y[-f:] *= np.linspace(1, 0, f)
+        return y
 
 
 def silencios(x, minimo=0.06):
@@ -316,28 +326,56 @@ def mix_in(buf, x, at):
 
 
 # ---------------------------------------------------------------- etapa 1: voz y línea de tiempo
+PAUSAS = {",": 0.17, ";": 0.26, ":": 0.28, ".": 0.36, "?": 0.40, "!": 0.36, "...": 0.42}
+
+
+def pausa_de(palabra):
+    if palabra.endswith("..."):
+        return PAUSAS["..."]
+    return PAUSAS.get(palabra[-1], 0.0)
+
+
 def etapa_audio(args):
-    os.makedirs(os.path.join(BUILD, "voz"), exist_ok=True)
+    """Cada trozo hasta un signo de puntuación se genera aparte (conserva su entonación: suspensiva en la
+    coma, descendente en el punto, ascendente en la pregunta) y luego se respeta la pausa del signo."""
+    carpeta = os.path.join(BUILD, "voz")
+    shutil.rmtree(carpeta, ignore_errors=True)
+    os.makedirs(carpeta)
     tts = Kokoro(args.kokoro, args.voz)
-    INTRO, ENTRE_ESCENAS, COLA = 0.2, 0.22, 1.4
+    INTRO, COLA = 0.2, 1.4
     t = INTRO
     segs, palabras, piezas = [], [], []
+    habla, silabas = 0.0, 0
     for si, (escena, frases) in enumerate(GUION):
         seg = {"scene": escena, "start": 0.0 if si == 0 else t, "cues": {}}
-        parsed = [parse_frase(f) for f in frases]
-        texto = " ".join(v for _, v in parsed)
-        x = tts(texto, args.velocidad)          # la escena completa de una vez: entonación natural
-        write_wav(os.path.join(BUILD, "voz", f"{si:02d}_{escena}.wav"), x)
-        d = len(x) / SR
-        piezas.append((t, x))
-        tiempos = tiempos_palabras([ws for ws, _ in parsed], d, silencios(x))
-        for fi, (ws, _) in enumerate(parsed):
-            for (w, clave, cue), (a, b) in zip(ws, tiempos[fi]):
-                palabras.append({"w": w, "key": clave, "start": round(t + a, 3), "end": round(t + b, 3),
+        # las palabras de toda la escena; solo se corta donde hay signo de puntuación
+        ws_esc = [(w, clave, cue, fi) for fi, frase in enumerate(frases) for w, clave, cue in parse_frase(frase)[0]]
+        trozo = []
+        for k, item in enumerate(ws_esc):
+            trozo.append(item)
+            corto = len(" ".join(w for w, _, _, _ in trozo)) < 10   # "Y así," solo se pronuncia mal: va con lo que sigue
+            if k < len(ws_esc) - 1 and (pausa_de(item[0]) == 0 or (corto and pausa_de(item[0]) < PAUSAS["."])):
+                continue
+            voz = " ".join(DICHO.get(w.strip(".,:;?!"), w.strip(".,:;?!")) + w[len(w.rstrip(".,:;?!")):]
+                           for w, _, _, _ in trozo)
+            x = tts(voz, args.velocidad)
+            write_wav(os.path.join(carpeta, f"{si:02d}_{k:02d}.wav"), x)
+            d = len(x) / SR
+            piezas.append((t, x))
+            habla += d
+            silabas += sum(len(re.findall(r"[aeiouáéíóúü]+", DICHO.get(w.strip(".,:;?!"), w).lower()))
+                           for w, _, _, _ in trozo)
+            pesos = [peso(w) for w, _, _, _ in trozo]
+            tp, acc = sum(pesos), 0
+            for (w, clave, cue, fi), p in zip(trozo, pesos):
+                ini = t + d * acc / tp
+                acc += p
+                palabras.append({"w": w, "key": clave, "start": round(ini, 3), "end": round(t + d * acc / tp, 3),
                                  "frase": f"{si}_{fi}", "scene": escena})
                 if cue:
-                    seg["cues"][cue] = round(t + a, 3)
-        t += d + ENTRE_ESCENAS
+                    seg["cues"][cue] = round(ini, 3)
+            t += d + (pausa_de(trozo[-1][0]) or PAUSAS[","])
+            trozo = []
         seg["end"] = t
         segs.append(seg)
     total = t + COLA
@@ -353,6 +391,7 @@ def etapa_audio(args):
         json.dump(tl, f, ensure_ascii=False, indent=1)
     for s in segs:
         print(f"  {s['scene']:9s} {s['start']:6.2f} → {s['end']:6.2f}")
+    print(f"Ritmo al hablar: {silabas / habla:.1f} sílabas/s; con pausas: {silabas / (total - INTRO - COLA):.1f} sílabas/s")
     print(f"Duración: {total:.1f} s, {tl['frames']} cuadros")
     return tl
 
@@ -553,7 +592,7 @@ def main():
     ap.add_argument("--kokoro", default=os.path.join(AQUI, "kokoro"), help="carpeta del modelo Kokoro v1.0 (model.onnx, voices.bin, tokens.txt)")
     ap.add_argument("--voz", default="em_alex", help="voz de Kokoro: em_alex o em_santa (hombres, español)")
     ap.add_argument("--salida", default=os.path.join(AQUI, "leyenda-ajedrez.mp4"))
-    ap.add_argument("--velocidad", type=float, default=1.12, help="velocidad de la voz (1 = normal)")
+    ap.add_argument("--velocidad", type=float, default=1.28, help="velocidad de la voz (1 = normal)")
     ap.add_argument("--procesos", type=int, default=3)
     ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
     ap.add_argument("--muestras", default="", help="segundos separados por coma para --etapa muestras")

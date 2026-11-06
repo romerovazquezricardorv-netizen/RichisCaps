@@ -1,6 +1,6 @@
 # El tablero que arruinó a un rey
 
-Video vertical (1080×1920, 30 fps, 48 s) narrado con una voz neuronal de hombre (Kokoro, voz `em_alex`), al estilo de los videos explicativos en 3D de TikTok e Instagram:
+Video vertical (1080×1920, 30 fps, 54 s) narrado con una voz neuronal de hombre (Kokoro, voz `em_alex`), al estilo de los videos explicativos en 3D de TikTok e Instagram:
 
 - escenas 3D con la cámara en movimiento y cortes rápidos con un pequeño zoom,
 - subtítulos arriba que aparecen palabra por palabra: la palabra que se dice en blanco, las dichas en gris y las palabras clave en azul,
@@ -29,10 +29,10 @@ python3 generar.py --kokoro kokoro-multi-lang-v1_0
 ```
 
 - `--voz em_alex`: voz de hombre (también hay `em_santa`, otra voz de hombre).
-- `--velocidad 1.12`: ritmo de la narración (1 = normal, más alto = más rápido).
+- `--velocidad 1.28`: ritmo de la narración (1 = normal, más alto = más rápido). Con 1.28 habla a unas 6 sílabas por segundo, un ritmo normal-rápido.
 - `--etapa muestras`: genera solo una hoja de cuadros de muestra en `build/muestras.jpg`, para revisar sin renderizar todo.
 - `--etapa audio | 3d | componer`: corre una sola etapa.
 
-La voz se genera una escena completa a la vez para que la entonación suene natural. Los tiempos de cada palabra del subtítulo salen de las pausas reales del audio. El volumen final se normaliza a -14 LUFS, el nivel que usan TikTok e Instagram.
+La voz está en español latinoamericano: los fonemas salen de espeak-ng con `es-419`, con seseo y «j» suave. Cada trozo hasta un signo de puntuación se genera aparte para que conserve su entonación: suspensiva en la coma, descendente en el punto y ascendente en la pregunta. Luego se respeta la pausa de cada signo (coma 0.17 s, dos puntos 0.28 s, punto 0.36 s, pregunta 0.40 s, puntos suspensivos 0.42 s); las pausas se ajustan en `PAUSAS`. Los subtítulos quedan sincronizados con cada trozo. El volumen final se normaliza a -14 LUFS, el nivel que usan TikTok e Instagram.
 
 Para cambiar lo que se dice, edita `GUION` en `generar.py`: `*palabra*` la marca en azul y `palabra{cue}` deja una marca de tiempo que usan las animaciones.
