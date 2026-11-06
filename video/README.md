@@ -28,7 +28,7 @@ tar xjf kokoro-multi-lang-v1_0.tar.bz2
 python3 generar.py --kokoro kokoro-multi-lang-v1_0
 ```
 
-- `--voz em_alex`: voz de hombre (también hay `em_santa`, más grave y teatral).
+- `--voz em_alex`: voz de hombre (también hay `em_santa`, otra voz de hombre).
 - `--velocidad 1.12`: ritmo de la narración (1 = normal, más alto = más rápido).
 - `--etapa muestras`: genera solo una hoja de cuadros de muestra en `build/muestras.jpg`, para revisar sin renderizar todo.
 - `--etapa audio | 3d | componer`: corre una sola etapa.
