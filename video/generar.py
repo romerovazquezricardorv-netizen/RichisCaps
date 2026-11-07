@@ -379,13 +379,14 @@ def etapa_audio(args):
 
 
 # ---------------------------------------------------------------- voz externa (p. ej. CapCut)
-NUM_ASR = {"2": "dos", "4": "cuatro", "8": "ocho", "10": "diez", "18": "dieciocho", "20": "veinte", "32": "treinta y dos",
-           "64": "sesenta y cuatro", "512": "quinientos doce", "9": "nueve", "1": "un"}
+NUM_ASR = {"1": "un", "2": "dos", "4": "cuatro", "5": "cinco", "6": "seis", "8": "ocho", "9": "nueve", "10": "diez",
+           "15": "quince", "18": "dieciocho", "20": "veinte", "32": "treinta y dos", "64": "sesenta y cuatro",
+           "512": "quinientos doce"}
 
 
 def normaliza(texto):
     import unicodedata
-    t = unicodedata.normalize("NFD", texto.lower())
+    t = unicodedata.normalize("NFD", texto.lower().replace("%", " por ciento"))
     t = "".join(c for c in t if unicodedata.category(c) != "Mn")
     out = []
     for w in re.findall(r"[a-z0-9]+", t):
@@ -444,7 +445,24 @@ def etapa_audio_externa(args):
             if trozo_de[k] is None:
                 trozo_de[k] = asr[bl.b + j][1]
     faltan = sum(1 for t in trozo_de if t is None)
-    for k in range(len(trozo_de)):          # palabras no reconocidas: van con la vecina
+    # palabras no reconocidas entre dos reconocidas: si entre sus trozos hay trozos "huérfanos"
+    # (p. ej. "jazmín" que Whisper oyó como "Kazmin"), se reparten en ellos
+    k = 0
+    while k < len(trozo_de):
+        if trozo_de[k] is not None:
+            k += 1
+            continue
+        j = k
+        while j < len(trozo_de) and trozo_de[j] is None:
+            j += 1
+        pa = trozo_de[k - 1] if k else -1
+        pb = trozo_de[j] if j < len(trozo_de) else len(trozos)
+        libres = list(range(pa + 1, pb))
+        if libres:
+            for n, kk in enumerate(range(k, j)):
+                trozo_de[kk] = libres[min(len(libres) - 1, n * len(libres) // (j - k))]
+        k = j
+    for k in range(len(trozo_de)):          # el resto de las no reconocidas: van con la vecina
         if trozo_de[k] is None:
             trozo_de[k] = trozo_de[k - 1] if k else next(t for t in trozo_de if t is not None)
     for k in range(1, len(trozo_de)):       # el orden nunca retrocede
@@ -467,7 +485,7 @@ def etapa_audio_externa(args):
         ws = [w for w in palabras if w["si"] == si]
         ini = 0.0 if si == 0 else max(0.0, ws[0]["start"] - 0.12)
         segs.append({"scene": escena, "start": round(ini, 3), "cues": {w["cue"]: w["start"] for w in ws if w["cue"]}})
-    total = max(dur, palabras[-1]["end"] + 1.4)
+    total = palabras[-1]["end"] + 1.8   # el silencio que sobre al final de la exportación se recorta
     for i, sg in enumerate(segs):
         sg["end"] = segs[i + 1]["start"] if i + 1 < len(segs) else total
     for w in palabras:
