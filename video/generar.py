@@ -32,37 +32,19 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(AQUI, "build")
 W, H, FPS, SR = 1080, 1920, 30, 44100
 
-# ---------------------------------------------------------------- guion
-# Cada escena es una lista de frases. *palabra* = palabra clave (azul); palabra{cue} = marca de tiempo
-# que usan las animaciones. Los números se leen con DICHO.
-GUION = [
-    ("gancho", ["¿Sabías que este tablero de ajedrez", "casi deja en la *ruina* a un *rey*?"]),
-    ("pago", ["Cuenta la leyenda que su inventor", "le pidió al rey un pago muy *extraño*:"]),
-    ("granos", ["*un{g1} grano* de trigo en la primera casilla,", "*dos*{g2} en la segunda,", "*cuatro*{g3} en la tercera,",
-                "*ocho*{g4} en la cuarta..."]),
-    ("duplicar", ["y así, *duplicando*,", "hasta la casilla *64*."]),
-    ("risa", ["El rey se rió y aceptó de inmediato.", "Le pareció *casi nada*."]),
-    ("c10", ["Pero mira: en la casilla 10", "ya hay *512 granos*."]),
-    ("c20", ["En la 20,", "más de *medio millón*."]),
-    ("c32", ["En la 32,", "más de *dos mil millones*...", "y apenas vamos a la *mitad*{mitad} del tablero."]),
-    ("c64", ["Y en la última casilla,", "habría más de *nueve trillones* de granos."]),
-    ("total", ["En total, unos *18 trillones*.", "Más trigo del que el mundo entero", "cosecharía en *mil{mil} años*."]),
-    ("expo", ["Eso es el *crecimiento exponencial*:", "al principio no se nota...", "y de{boom} repente, es *imposible* de detener."]),
-    ("final", ["Por eso dicen que el rey...", "*nunca*{cae} pudo pagar."]),
-]
-DICHO = {"64": "sesenta y cuatro", "10": "diez", "512": "quinientos doce", "20": "veinte", "32": "treinta y dos",
-         "18": "dieciocho"}
+# ---------------------------------------------------------------- tema
+# El guion, las etiquetas y los efectos de cada video viven en temas/<nombre>.py (ver cargar_tema).
+GUION, DICHO, PILDORAS, TEMA = [], {}, {}, None
 
-# Etiquetas ("píldoras"): escena -> lista de (cue o segundos desde el inicio, texto, subtexto)
-PILDORAS = {
-    "granos": [("g1", "1 grano", None), ("g2", "2 granos", None), ("g3", "4 granos", None), ("g4", "8 granos", None)],
-    "duplicar": [(0.5, "×2 en cada casilla", None)],
-    "c10": [(0.6, "512 granos", "casilla 10")],
-    "c20": [(0.5, "524 288 granos", "casilla 20")],
-    "c32": [(0.6, "2 147 483 648 granos", "casilla 32"), ("mitad", "2 147 483 648 granos", "la mitad del tablero")],
-    "c64": [(0.5, "9 223 372 036 854 775 808", "granos en la casilla 64")],
-    "total": [(0.3, "18 446 744 073 709 551 615", "granos en todo el tablero"), ("mil", "≈ 1 000 años", "de cosecha mundial de trigo")],
-}
+
+def cargar_tema(nombre):
+    global GUION, DICHO, PILDORAS, TEMA, BUILD
+    import importlib
+    TEMA = importlib.import_module(f"temas.{nombre}")
+    GUION, DICHO, PILDORAS = TEMA.GUION, TEMA.DICHO, TEMA.PILDORAS
+    BUILD = os.path.join(AQUI, "build", nombre)
+    os.makedirs(BUILD, exist_ok=True)
+
 
 # ---------------------------------------------------------------- tipografía
 FONT_DIRS = ["/usr/share/fonts/opentype/inter/", "/usr/share/fonts/truetype/dejavu/"]
@@ -510,13 +492,13 @@ def mezcla(tl):
     segs = {s["scene"]: s for s in tl["segments"]}
     for i, s in enumerate(tl["segments"][1:]):
         mix_in(sfx, whoosh(seed=i), s["start"] - 0.22)
-    for k in ("g1", "g2", "g3", "g4"):
-        at = segs["granos"]["cues"][k]
-        for j in range(2 ** (int(k[1]) - 1)):
-            mix_in(sfx, tone(1400 + 300 * random.Random(j).random(), 0.05, 0.06, 60), at + 0.35 + j * 0.05)
-    for at in (segs["c20"]["start"] + 0.3, segs["c32"]["start"] + 0.5, segs["c64"]["start"] + 0.2,
-               segs["total"]["cues"]["mil"], segs["expo"]["cues"]["boom"], segs["final"]["cues"]["cae"] + 1.0):
-        mix_in(sfx, boom(), at)
+    for at, tipo, par in TEMA.efectos(segs):
+        if tipo == "boom":
+            mix_in(sfx, boom(), at)
+        elif tipo == "tin":        # tintineo agudo (grano que cae, gota...)
+            mix_in(sfx, tone(1400 + 300 * random.Random(par or 0).random(), 0.05, 0.06, 60), at)
+        elif tipo == "spray":      # rocío de perfume: ráfaga de ruido suave
+            mix_in(sfx, whoosh(d=0.7, v=0.16, seed=7), at)
     mus = music(total)
     env = np.convolve(np.abs(vo), np.ones(4410) / 4410, mode="same")
     duck = 1 - 0.5 * np.clip(env * 14, 0, 1)
@@ -696,7 +678,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--kokoro", default=os.path.join(AQUI, "kokoro"), help="carpeta del modelo Kokoro v1.0 (model.onnx, voices.bin, tokens.txt)")
     ap.add_argument("--voz", default="em_alex", help="voz de Kokoro: em_alex o em_santa (hombres, español)")
-    ap.add_argument("--salida", default=os.path.join(AQUI, "leyenda-ajedrez.mp4"))
+    ap.add_argument("--tema", default="ajedrez", help="tema del video: un archivo de temas/ (ajedrez, perfume...)")
+    ap.add_argument("--salida", help="archivo de video (por defecto el que indica el tema)")
     ap.add_argument("--voz-externa", help="audio o video con la voz ya grabada (CapCut, tu propia voz...)")
     ap.add_argument("--whisper", help="carpeta del modelo sherpa-onnx-whisper (para alinear la voz externa)")
     ap.add_argument("--velocidad", type=float, default=1.28, help="velocidad de la voz (1 = normal)")
@@ -704,6 +687,9 @@ def main():
     ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
     ap.add_argument("--muestras", default="", help="segundos separados por coma para --etapa muestras")
     args = ap.parse_args()
+    cargar_tema(args.tema)
+    args.salida = args.salida or os.path.join(AQUI, TEMA.SALIDA)
+    os.environ["ESCENA_QUERY"] = f"escena={TEMA.ESCENA}&tl=/build/{args.tema}/timeline.json"
 
     if args.etapa in ("todo", "audio"):
         tl = etapa_audio_externa(args) if args.voz_externa else etapa_audio(args)

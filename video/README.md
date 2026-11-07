@@ -11,6 +11,9 @@ El tema es la leyenda del ajedrez y los granos de trigo: 1 grano en la primera c
 
 ## Archivos
 
+- `perfume-capas.mp4`: video de perfume (notas de salida, corazón y fondo), por ahora con voz provisional.
+- `guion-perfume-para-grabar.md`: el guion de perfume para hacer la voz en CapCut.
+- `temas/`: un archivo por video (guion, etiquetas y efectos). `escena3d/escena.js` es la escena del ajedrez y `escena3d/perfume.js` la del perfume.
 - `leyenda-ajedrez-nandez.mp4`: el video con la voz de Nandez hecha en CapCut, con escenas y subtítulos ajustados a esa voz.
 - `leyenda-ajedrez.mp4`: el video terminado.
 - `generar.py`: guion, voz, subtítulos, etiquetas, música, efectos y composición final.
@@ -49,3 +52,7 @@ python3 generar.py --voz-externa video_de_capcut.mp4 --whisper sherpa-onnx-whisp
 ```
 
 El programa corta la voz en sus pausas, transcribe cada trozo con Whisper y alinea cada palabra del guion con esos tiempos. Las escenas, los subtítulos y los efectos siguen a la voz, así que no hay que sincronizar nada a mano. La voz se deja tal cual; solo se normaliza el volumen al final.
+
+## Temas
+
+Cada video es un tema: `python3 generar.py --tema perfume ...` usa `temas/perfume.py` (guion, etiquetas y efectos) y la escena `escena3d/perfume.js`. Los archivos intermedios quedan en `build/<tema>/`. Para hacer un tema nuevo se copia un archivo de `temas/`, se cambia el guion y se arma su escena 3D.

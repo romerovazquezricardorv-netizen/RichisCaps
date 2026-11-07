@@ -35,7 +35,7 @@ async function worker() {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
   page.on('pageerror', e => console.error('ERROR página:', e.message));
-  await page.goto(`http://localhost:${port}/escena3d/index.html`);
+  await page.goto(`http://localhost:${port}/escena3d/index.html?${process.env.ESCENA_QUERY || ''}`);
   await page.waitForFunction('window.ready === true', null, { timeout: 60000 });
   while (next < frames.length) {
     const i = frames[next++];

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 
 const W = 1080, H = 1920;
-const timeline = await (await fetch('/build/timeline.json')).json();
+const timeline = await (await fetch(new URLSearchParams(location.search).get('tl') || '/build/ajedrez/timeline.json')).json();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
