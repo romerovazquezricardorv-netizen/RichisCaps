@@ -396,6 +396,111 @@ def etapa_audio(args):
     return tl
 
 
+# ---------------------------------------------------------------- voz externa (p. ej. CapCut)
+NUM_ASR = {"2": "dos", "4": "cuatro", "8": "ocho", "10": "diez", "18": "dieciocho", "20": "veinte", "32": "treinta y dos",
+           "64": "sesenta y cuatro", "512": "quinientos doce", "9": "nueve", "1": "un"}
+
+
+def normaliza(texto):
+    import unicodedata
+    t = unicodedata.normalize("NFD", texto.lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    out = []
+    for w in re.findall(r"[a-z0-9]+", t):
+        out.extend(NUM_ASR.get(w, w).split())
+    return out
+
+
+def etapa_audio_externa(args):
+    """Usa una voz grabada aparte: la parte en sus pausas, transcribe cada trozo con Whisper y alinea el guion
+    palabra por palabra, para que escenas y subtítulos sigan a la voz (no al revés)."""
+    import difflib
+    import glob
+    import sherpa_onnx
+    os.makedirs(BUILD, exist_ok=True)
+    cruda = os.path.join(BUILD, "voz_externa.wav")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", args.voz_externa, "-vn", "-ac", "1", "-ar", str(SR), cruda], check=True)
+    x = read_wav(cruda)
+    dur = len(x) / SR
+    gaps = silencios(x, 0.06)
+    lim = [0.0] + [t for g in gaps for t in g] + [dur]
+    D = args.whisper
+    rec = sherpa_onnx.OfflineRecognizer.from_whisper(
+        encoder=glob.glob(os.path.join(D, "*encoder.int8.onnx"))[0], decoder=glob.glob(os.path.join(D, "*decoder.int8.onnx"))[0],
+        tokens=glob.glob(os.path.join(D, "*tokens.txt"))[0], language="es", task="transcribe", num_threads=4)
+    trozos, asr = [], []
+    for i in range(0, len(lim), 2):
+        a, b = lim[i], lim[i + 1]
+        seg = x[int(a * SR):int(b * SR)]
+        env = np.convolve(np.abs(seg), np.ones(220) / 220, mode="same")
+        idx = np.where(env > 0.01)[0]
+        if len(idx) == 0:
+            continue
+        va, vb = a + idx[0] / SR, a + idx[-1] / SR
+        n = int(len(seg) * 16000 / SR)
+        y = np.interp(np.linspace(0, len(seg) - 1, n), np.arange(len(seg)), seg).astype(np.float32)
+        st = rec.create_stream()
+        st.accept_waveform(16000, np.concatenate([np.zeros(3200, np.float32), y, np.zeros(3200, np.float32)]))
+        rec.decode_stream(st)
+        texto = st.result.text.strip()
+        trozos.append((va, vb, texto))
+        asr.extend((tok, len(trozos) - 1) for tok in normaliza(texto))
+        print(f"  {va:6.2f}–{vb:6.2f}  {texto}")
+    # palabras del guion, cada una con sus fichas "dichas" (64 -> sesenta y cuatro)
+    palabras_g = []
+    for si, (escena, frases) in enumerate(GUION):
+        for fi, frase in enumerate(frases):
+            for w, clave, cue in parse_frase(frase)[0]:
+                palabras_g.append({"w": w, "key": clave, "cue": cue, "scene": escena, "si": si, "frase": f"{si}_{fi}",
+                                   "tok": normaliza(DICHO.get(w.strip(".,:;?!¿"), w))})
+    fichas = [(k, t) for k, pw in enumerate(palabras_g) for t in pw["tok"]]
+    sm = difflib.SequenceMatcher(None, [t for _, t in fichas], [t for t, _ in asr], autojunk=False)
+    trozo_de = [None] * len(palabras_g)
+    for bl in sm.get_matching_blocks():
+        for j in range(bl.size):
+            k = fichas[bl.a + j][0]
+            if trozo_de[k] is None:
+                trozo_de[k] = asr[bl.b + j][1]
+    faltan = sum(1 for t in trozo_de if t is None)
+    for k in range(len(trozo_de)):          # palabras no reconocidas: van con la vecina
+        if trozo_de[k] is None:
+            trozo_de[k] = trozo_de[k - 1] if k else next(t for t in trozo_de if t is not None)
+    for k in range(1, len(trozo_de)):       # el orden nunca retrocede
+        trozo_de[k] = max(trozo_de[k], trozo_de[k - 1])
+    palabras = []
+    for ti, (va, vb, _) in enumerate(trozos):
+        ks = [k for k, t in enumerate(trozo_de) if t == ti]
+        if not ks:
+            continue
+        pesos = [peso(palabras_g[k]["w"]) for k in ks]
+        tot, acc = sum(pesos), 0
+        for k, p in zip(ks, pesos):
+            pw = palabras_g[k]
+            palabras.append({"w": pw["w"], "key": pw["key"], "start": round(va + (vb - va) * acc / tot, 3),
+                             "end": round(va + (vb - va) * (acc + p) / tot, 3), "frase": pw["frase"], "scene": pw["scene"],
+                             "cue": pw["cue"], "si": pw["si"]})
+            acc += p
+    segs = []
+    for si, (escena, _) in enumerate(GUION):
+        ws = [w for w in palabras if w["si"] == si]
+        ini = 0.0 if si == 0 else max(0.0, ws[0]["start"] - 0.12)
+        segs.append({"scene": escena, "start": round(ini, 3), "cues": {w["cue"]: w["start"] for w in ws if w["cue"]}})
+    total = max(dur, palabras[-1]["end"] + 1.4)
+    for i, sg in enumerate(segs):
+        sg["end"] = segs[i + 1]["start"] if i + 1 < len(segs) else total
+    for w in palabras:
+        del w["cue"], w["si"]
+    shutil.copy(cruda, os.path.join(BUILD, "voz.wav"))   # la voz grabada se deja tal cual
+    tl = {"fps": FPS, "total": total, "frames": int(total * FPS), "segments": segs, "words": palabras}
+    with open(os.path.join(BUILD, "timeline.json"), "w") as f:
+        json.dump(tl, f, ensure_ascii=False, indent=1)
+    print(f"Palabras del guion sin reconocer: {faltan} de {len(palabras_g)}")
+    for sg in segs:
+        print(f"  {sg['scene']:9s} {sg['start']:6.2f} → {sg['end']:6.2f}")
+    print(f"Duración: {total:.1f} s, {tl['frames']} cuadros")
+    return tl
+
+
 def mezcla(tl):
     total = tl["total"]
     vo = read_wav(os.path.join(BUILD, "voz.wav"))
@@ -592,6 +697,8 @@ def main():
     ap.add_argument("--kokoro", default=os.path.join(AQUI, "kokoro"), help="carpeta del modelo Kokoro v1.0 (model.onnx, voices.bin, tokens.txt)")
     ap.add_argument("--voz", default="em_alex", help="voz de Kokoro: em_alex o em_santa (hombres, español)")
     ap.add_argument("--salida", default=os.path.join(AQUI, "leyenda-ajedrez.mp4"))
+    ap.add_argument("--voz-externa", help="audio o video con la voz ya grabada (CapCut, tu propia voz...)")
+    ap.add_argument("--whisper", help="carpeta del modelo sherpa-onnx-whisper (para alinear la voz externa)")
     ap.add_argument("--velocidad", type=float, default=1.28, help="velocidad de la voz (1 = normal)")
     ap.add_argument("--procesos", type=int, default=3)
     ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
@@ -599,7 +706,7 @@ def main():
     args = ap.parse_args()
 
     if args.etapa in ("todo", "audio"):
-        tl = etapa_audio(args)
+        tl = etapa_audio_externa(args) if args.voz_externa else etapa_audio(args)
         shutil.rmtree(os.path.join(BUILD, "frames"), ignore_errors=True)
     else:
         tl = json.load(open(os.path.join(BUILD, "timeline.json")))

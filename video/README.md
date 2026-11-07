@@ -11,6 +11,7 @@ El tema es la leyenda del ajedrez y los granos de trigo: 1 grano en la primera c
 
 ## Archivos
 
+- `leyenda-ajedrez-nandez.mp4`: el video con la voz de Nandez hecha en CapCut, con escenas y subtítulos ajustados a esa voz.
 - `leyenda-ajedrez.mp4`: el video terminado.
 - `generar.py`: guion, voz, subtítulos, etiquetas, música, efectos y composición final.
 - `escena3d/escena.js`: el mundo 3D (three.js): tablero, reyes, granos, montones, montaña, columna, cubos y barras.
@@ -36,3 +37,15 @@ python3 generar.py --kokoro kokoro-multi-lang-v1_0
 La voz está en español latinoamericano: los fonemas salen de espeak-ng con `es-419`, con seseo y «j» suave. Cada trozo hasta un signo de puntuación se genera aparte para que conserve su entonación: suspensiva en la coma, descendente en el punto y ascendente en la pregunta. Luego se respeta la pausa de cada signo (coma 0.17 s, dos puntos 0.28 s, punto 0.36 s, pregunta 0.40 s, puntos suspensivos 0.42 s); las pausas se ajustan en `PAUSAS`. Los subtítulos quedan sincronizados con cada trozo. El volumen final se normaliza a -14 LUFS, el nivel que usan TikTok e Instagram.
 
 Para cambiar lo que se dice, edita `GUION` en `generar.py`: `*palabra*` la marca en azul y `palabra{cue}` deja una marca de tiempo que usan las animaciones.
+
+## Usar una voz grabada aparte (CapCut, tu propia voz…)
+
+```bash
+# modelo Whisper para alinear (≈600 MB), no se guarda en el repo:
+curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2
+tar xjf sherpa-onnx-whisper-small.tar.bz2
+pip install sherpa-onnx
+python3 generar.py --voz-externa video_de_capcut.mp4 --whisper sherpa-onnx-whisper-small --salida mi-video.mp4
+```
+
+El programa corta la voz en sus pausas, transcribe cada trozo con Whisper y alinea cada palabra del guion con esos tiempos. Las escenas, los subtítulos y los efectos siguen a la voz, así que no hay que sincronizar nada a mano. La voz se deja tal cual; solo se normaliza el volumen al final.
