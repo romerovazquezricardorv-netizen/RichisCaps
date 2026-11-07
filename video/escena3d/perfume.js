@@ -170,9 +170,9 @@ function hideMist() { const P = mistGeo.attributes.position; for (let i = 0; i <
 
 // ------------------------------------------------------------------ pirámide olfativa
 const LAYERS = [
-  { rb: 2.5, rt: 1.66, h: 0.95, color: 0xc4782f },   // fondo
-  { rb: 1.6, rt: 0.86, h: 0.95, color: 0xff6aa8 },   // corazón
-  { rb: 0.82, rt: 0.02, h: 0.95, color: 0xffe066 },  // salida
+  { rb: 2.5, rt: 1.66, h: 0.95, color: 0xf08a24 },   // fondo (ámbar)
+  { rb: 1.6, rt: 0.86, h: 0.95, color: 0xff3d8b },   // corazón (rosa intenso)
+  { rb: 0.82, rt: 0.02, h: 0.95, color: 0xfff04a },  // salida (limón)
 ];
 const pyr = new THREE.Group();
 pyr.position.copy(PYR);
@@ -184,20 +184,77 @@ const layers = LAYERS.map(L => {
   pyr.add(m);
   return m;
 });
-function setPyramid(t, rise, gap, focus) {
-  // focus: índice de la capa destacada (0 fondo, 1 corazón, 2 salida) o -1; las de arriba ya "evaporadas" se ven tenues
+const DIM = new THREE.Color(0x2a2140);
+// rise[i]: 0..1 entrada de cada capa; gap: separación; focus: capa destacada (0 fondo, 1 corazón, 2 salida) o -1;
+// pop: 0..1 cuánto sale hacia la cámara la capa destacada; T: tiempo global (giro continuo entre cortes)
+function setPyramid(T, rise, gap, focus, pop = 1) {
   let y = 0;
   layers.forEach((m, i) => {
-    const L = LAYERS[i];
-    m.position.y = (y + L.h / 2) * rise + i * gap;
-    y += L.h;
-    m.scale.setScalar(Math.max(0.001, rise));
+    const L = LAYERS[i], r = Array.isArray(rise) ? rise[i] : rise;
     const on = focus === i;
-    m.material.emissiveIntensity = on ? 0.45 + 0.15 * Math.sin(t * 5) : 0.05;
-    m.material.opacity = focus >= 0 && i > focus ? 0.22 : 1;
+    m.position.set(0, (y + L.h / 2) + i * gap + (1 - r) * 4.5, on ? 1.0 * pop : 0);
+    y += L.h;
+    m.scale.setScalar(Math.max(0.001, Math.min(1, r * 1.0)) * (on ? 1 + 0.12 * pop : 1));
+    m.rotation.y = T * (on ? 0.9 : 0.3);
+    m.material.color.set(L.color);
+    if (focus >= 0 && !on) m.material.color.lerp(DIM, 0.55);
+    m.material.emissive.set(L.color);
+    m.material.emissiveIntensity = on ? 0.5 + 0.2 * Math.sin(T * 5) : focus >= 0 ? 0.02 : 0.12;
+    m.material.opacity = 1;
+    m.visible = r > 0.001;
   });
-  pyr.rotation.y = t * 0.25;
+  pyr.rotation.y = 0;
 }
+// destellos de color alrededor de la capa destacada
+const SPARKN = 160;
+const sparkGeo = new THREE.BufferGeometry();
+sparkGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SPARKN * 3), 3));
+const sparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.16, map: DOT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffffff }));
+sparks.frustumCulled = false;
+scene.add(sparks);
+const sparkSeed = []; { const r = rng(31); for (let i = 0; i < SPARKN; i++) sparkSeed.push([r() * 6.28, r(), r(), r()]); }
+function setSparks(T, center, radius, height, color, amount = 1) {
+  sparks.visible = true;
+  sparks.material.color.set(color);
+  sparks.material.opacity = amount;
+  const P = sparkGeo.attributes.position;
+  for (let i = 0; i < SPARKN; i++) {
+    const [a0, rr, h, sp] = sparkSeed[i];
+    const a = a0 + T * (0.6 + sp * 0.8), r = radius * (0.8 + rr * 0.6);
+    P.setXYZ(i, center.x + Math.cos(a) * r, center.y + (h - 0.5) * height + 0.15 * Math.sin(T * 2 + a0 * 3), center.z + Math.sin(a) * r);
+  }
+  P.needsUpdate = true;
+}
+// anillo de luz en el piso
+const floorRing = new THREE.Mesh(new THREE.TorusGeometry(3.0, 0.05, 12, 160), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+floorRing.rotation.x = Math.PI / 2;
+const floorRing2 = floorRing.clone(); floorRing2.material = floorRing.material.clone(); floorRing2.scale.setScalar(1.25);
+scene.add(floorRing, floorRing2);
+function setFloorRings(T, center, color) {
+  [floorRing, floorRing2].forEach((m, k) => {
+    m.visible = true; m.position.set(center.x, 0.03, center.z);
+    m.material.color.set(color);
+    const ph = (T * 0.5 + k * 0.5) % 1;
+    m.scale.setScalar(0.8 + ph * 0.9); m.material.opacity = 0.9 * (1 - ph);
+  });
+}
+// bokeh de color al fondo
+const BOKN = 70;
+const bokGeo = new THREE.BufferGeometry();
+bokGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(BOKN * 3), 3));
+const bokeh = new THREE.Points(bokGeo, new THREE.PointsMaterial({ size: 1.1, map: DOT, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+bokeh.frustumCulled = false;
+scene.add(bokeh);
+const bokSeed = []; { const r = rng(57); for (let i = 0; i < BOKN; i++) bokSeed.push([r() * 26 - 13, r() * 9 + 0.5, -(r() * 12 + 7), r() * 6.28]); }
+// paletas de fondo por escena: [cielo arriba, cielo abajo/niebla, bokeh]
+const PALETA = {
+  gancho: [0x5a1f7a, 0x170b2e, 0xff8fd0], capas: [0x4a1f8a, 0x160b30, 0xb98cff],
+  salida: [0x0f6b62, 0x07201f, 0xfff04a], ligeras: [0x1b5f6e, 0x081a22, 0xfff07a],
+  corazon: [0x7a1d63, 0x22081f, 0xff4f9a], fondo: [0x7a3d12, 0x241108, 0xffa23d],
+  pesadas: [0x6b3a14, 0x1f1008, 0xffb060], ropa: [0x24307a, 0x0b0f2a, 0xffa23d],
+  concentracion: [0x5a2a10, 0x180c06, 0xffc477], consejo: [0x1f5a6b, 0x071a20, 0xfff0a0],
+  final: [0x7a1d63, 0x1c0a26, 0xff6fb0],
+};
 
 // ------------------------------------------------------------------ ingredientes estilizados
 function petalRing(n, r, len, wid, color, tilt) {
@@ -239,14 +296,19 @@ const ingMeshes = {};
 for (const [k, list] of Object.entries(ingSets)) {
   ingMeshes[k] = list.map(([name, p]) => { const m = ING[name](); m.position.copy(PYR).add(p); m.userData.base = m.position.clone(); m.traverse(o => (o.castShadow = true)); scene.add(m); return m; });
 }
-function setIngredients(set, t, cues) {
+const LAYER_Y = [0.475, 1.425, 2.375];   // centro de cada capa sin separación
+function setIngredients(set, t, cues, T) {
+  const li = { fondo: 0, corazon: 1, salida: 2 }[set];
   ingMeshes[set].forEach((m, i) => {
     const c = cues[i];
     const p = c === undefined ? 0 : prog(t, c - 0.05, c + 0.55);
     m.visible = p > 0;
-    m.scale.setScalar(Math.max(0.001, spring(p)) * 0.7);
-    m.position.copy(m.userData.base); m.position.y += 0.08 * Math.sin(t * 2 + i);
-    m.rotation.y = t * 0.6 + i;
+    m.scale.setScalar(Math.max(0.001, spring(p)) * 0.95);
+    // órbita: cada ingrediente entra por el frente y gira alrededor de su capa
+    const a = Math.PI / 2 + (i - 1) * 0.75 + 0.45 * Math.max(0, t - (c ?? 0)) ;
+    const R = 2.5 + 0.2 * li;
+    m.position.set(PYR.x + Math.cos(a) * R, LAYER_Y[li] + 0.45 * li + 0.6 + 0.12 * Math.sin(T * 2 + i), PYR.z + Math.sin(a) * R + 0.4);
+    m.rotation.y = T * 0.8 + i; m.rotation.x = 0.2 * Math.sin(T + i);
   });
 }
 
@@ -340,9 +402,9 @@ const ROWDEF = [['Colonia', '2–5 %', 0.16, 0xffe9a8], ['Eau de Toilette', '5�
 const rowBottles = ROWDEF.map(([a, b, lvl, col], i) => {
   const g = makeBottle(col, ['COLOGNE', 'TOILETTE', 'PARFUM', 'EXTRAIT'][i]);
   g.scale.setScalar(0.8);
-  g.position.set(ROW.x + (i - 1.5) * 1.8, 0, ROW.z);
+  g.position.set(ROW.x + (i - 1.5) * 3.0, 0, ROW.z);
   g.userData.level = lvl;
-  const lab = textSprite([a, b]); lab.position.set(ROW.x + (i - 1.5) * 1.8, 0.12, ROW.z + 1.7); lab.scale.multiplyScalar(0.85);
+  const lab = textSprite([a, b]); lab.position.set(ROW.x + (i - 1.5) * 3.0, 0.5, ROW.z + 1.7); lab.scale.multiplyScalar(0.85);
   g.userData.label = lab;
   scene.add(g, lab);
   return g;
@@ -374,6 +436,7 @@ function resetWorld() {
   mol.count = 0;
   hideMist();
   glow.intensity = 0; spot.intensity = 0;
+  sparks.visible = floorRing.visible = floorRing2.visible = false;
   hero.userData.cap.position.set(0, 2.68, 0); hero.userData.cap.rotation.set(0, 0, 0);
   scene.fog.near = 22; scene.fog.far = 70;
 }
@@ -391,23 +454,31 @@ const SCENES = {
     setMist(t, V(HERO.x + 0.12, 2.57, HERO.z + 0.05), V(1, 0.12, 0.35).normalize(), ts);
     hero.rotation.y = -0.35 + 0.08 * Math.sin(t * 0.8);
     const p = easeIO(t / d);
-    return { pos: lerpV(V(-1.0, 1.5, 8.2), V(-0.2, 2.0, 6.6), p), tgt: V(0.6, 1.7, 0), fov: 40 };
+    return { pos: lerpV(V(-0.3, 1.5, 8.4), V(0.3, 2.0, 6.8), p), tgt: V(0.35, 1.7, 0), fov: 40 };
   },
-  capas(t, d, cue) {
+  capas(t, d, cue, T) {
     pyr.visible = true; lightAt(PYR);
     const tc = cue.capas ?? d * 0.6;
-    setPyramid(t, spring(prog(t, 0, 0.9)), 0.4 * easeOut(prog(t, tc, tc + 0.7)), -1);
-    glow.position.copy(PYR).add(V(0, 2, 3)); glow.intensity = 6;
-    const a = lerp(-0.5, 0.3, easeIO(t / d));
-    return { pos: V(PYR.x + Math.sin(a) * 8.5, 3.2, PYR.z + Math.cos(a) * 8.5), tgt: PYR.clone().add(V(0, 1.6, 0)), fov: 40 };
+    // las capas caen una por una (fondo, corazón, salida) y al decir "tres capas" se separan
+    const rise = [0, 1, 2].map(i => spring(prog(t, 0.15 + i * 0.35, 0.85 + i * 0.35)));
+    setPyramid(T, rise, 0.45 * easeOut(prog(t, tc, tc + 0.7)), -1);
+    setFloorRings(T, PYR, 0xb98cff);
+    setSparks(T, PYR.clone().add(V(0, 1.8, 0)), 2.8, 3.6, 0xffd6ff, 0.8);
+    glow.position.copy(PYR).add(V(0, 2, 3)); glow.intensity = 8; glow.color.set(0xffc6f0);
+    const a = lerp(-0.45, 0.35, easeIO(t / d));
+    return { pos: V(PYR.x + Math.sin(a) * 11, 3.6, PYR.z + Math.cos(a) * 11), tgt: PYR.clone().add(V(0, 1.9, 0)), fov: 40 };
   },
-  salida(t, d, cue) {
+  salida(t, d, cue, T) {
     pyr.visible = true; lightAt(PYR);
-    setPyramid(t, 1, 0.4, 2);
-    setIngredients('salida', t, [cue.i1, cue.i2, cue.i3]);
-    glow.position.copy(PYR).add(V(0, 4, 3)); glow.intensity = 8; glow.color.set(0xfff0a0);
+    const pop = easeOut(prog(t, 0.1, 0.8));
+    setPyramid(T, 1, 0.45, 2, pop);
+    setIngredients('salida', t, [cue.i1, cue.i2, cue.i3], T);
+    const cy = LAYER_Y[2] + 0.45 * 2;
+    setSparks(T, PYR.clone().add(V(0, cy, 1.0)), 2.0, 1.4, 0xfff04a, pop);
+    setFloorRings(T, PYR, 0xfff04a);
+    glow.position.copy(PYR).add(V(0, cy + 1.2, 5.5)); glow.intensity = 5; glow.color.set(0xfff6b0);
     const p = easeIO(t / d);
-    return { pos: lerpV(PYR.clone().add(V(-0.5, 4.3, 8.4)), PYR.clone().add(V(0.4, 4.0, 7.6)), p), tgt: PYR.clone().add(V(0, 3.6, 0)), fov: 40 };
+    return { pos: lerpV(PYR.clone().add(V(-1.2, 3.6, 13.6)), PYR.clone().add(V(0.9, 3.3, 12.2)), p), tgt: PYR.clone().add(V(0, 2.1, 0)), fov: 40 };
   },
   ligeras(t, d, cue) {
     skin.visible = skinRing.visible = clock.visible = true; lightAt(SKIN);
@@ -418,21 +489,29 @@ const SCENES = {
     const a = lerp(-0.25, 0.25, easeIO(t / d));
     return { pos: V(SKIN.x + Math.sin(a) * 7.5, 4.6, SKIN.z + Math.cos(a) * 7.5), tgt: SKIN.clone().add(V(0, 1.4, 0)), fov: 42 };
   },
-  corazon(t, d, cue) {
+  corazon(t, d, cue, T) {
     pyr.visible = true; lightAt(PYR);
-    setPyramid(t, 1, 0.4, 1);
-    setIngredients('corazon', t, [cue.i1, cue.i2, cue.i3]);
-    glow.position.copy(PYR).add(V(0, 2.5, 3)); glow.intensity = 8; glow.color.set(0xff8fc0);
+    const pop = easeOut(prog(t, 0.1, 0.8));
+    setPyramid(T, 1, 0.45, 1, pop);
+    setIngredients('corazon', t, [cue.i1, cue.i2, cue.i3], T);
+    const cy = LAYER_Y[1] + 0.45 * 1;
+    setSparks(T, PYR.clone().add(V(0, cy, 1.0)), 2.0, 1.4, 0xff4f9a, pop);
+    setFloorRings(T, PYR, 0xff4f9a);
+    glow.position.copy(PYR).add(V(0, cy + 1.2, 5.5)); glow.intensity = 5; glow.color.set(0xff9ccc);
     const p = easeIO(t / d);
-    return { pos: lerpV(PYR.clone().add(V(-0.6, 3.4, 8.8)), PYR.clone().add(V(0.5, 3.1, 8.0)), p), tgt: PYR.clone().add(V(0, 2.3, 0)), fov: 40 };
+    return { pos: lerpV(PYR.clone().add(V(-1.2, 3.6, 13.6)), PYR.clone().add(V(0.9, 3.3, 12.2)), p), tgt: PYR.clone().add(V(0, 2.1, 0)), fov: 40 };
   },
-  fondo(t, d, cue) {
+  fondo(t, d, cue, T) {
     pyr.visible = true; lightAt(PYR);
-    setPyramid(t, 1, 0.4, 0);
-    setIngredients('fondo', t, [cue.i1, cue.i2, cue.i3]);
-    glow.position.copy(PYR).add(V(0, 1.5, 3.5)); glow.intensity = 9; glow.color.set(0xffa050);
+    const pop = easeOut(prog(t, 0.1, 0.8));
+    setPyramid(T, 1, 0.45, 0, pop);
+    setIngredients('fondo', t, [cue.i1, cue.i2, cue.i3], T);
+    const cy = LAYER_Y[0] + 0.45 * 0;
+    setSparks(T, PYR.clone().add(V(0, cy, 1.0)), 2.0, 1.4, 0xffa23d, pop);
+    setFloorRings(T, PYR, 0xffa23d);
+    glow.position.copy(PYR).add(V(0, cy + 1.2, 5.5)); glow.intensity = 5; glow.color.set(0xffc080);
     const p = easeIO(t / d);
-    return { pos: lerpV(PYR.clone().add(V(-0.6, 2.0, 9.4)), PYR.clone().add(V(0.5, 1.8, 8.6)), p), tgt: PYR.clone().add(V(0, 1.05, 0)), fov: 40 };
+    return { pos: lerpV(PYR.clone().add(V(-1.2, 3.6, 13.6)), PYR.clone().add(V(0.9, 3.3, 12.2)), p), tgt: PYR.clone().add(V(0, 2.1, 0)), fov: 40 };
   },
   pesadas(t, d, cue) {
     skin.visible = skinRing.visible = clock.visible = true; lightAt(SKIN);
@@ -464,9 +543,9 @@ const SCENES = {
       const b = rowBottles[focus];
       spot.position.set(b.position.x, 6, ROW.z + 2.5); spot.target.position.set(b.position.x, 0.8, ROW.z); spot.intensity = 60;
     }
-    const tx = t < c4 - 0.4 ? lerp(0, -2.7, easeIO(prog(t, c1 - 0.6, c1 + 0.3))) : lerp(-2.7, 2.7, easeIO(prog(t, c4 - 0.4, c4 + 0.5)));
-    const zc = lerp(11.5, 8.0, easeIO(prog(t, c1 - 0.6, c1 + 0.3)));
-    return { pos: V(ROW.x + tx * 0.75, 2.6, ROW.z + zc), tgt: V(ROW.x + tx * 0.9, 1.7, ROW.z), fov: 40 };
+    const tx = t < c4 - 0.4 ? lerp(0, -4.5, easeIO(prog(t, c1 - 0.6, c1 + 0.3))) : lerp(-4.5, 4.5, easeIO(prog(t, c4 - 0.4, c4 + 0.5)));
+    const zc = lerp(15.0, 8.0, easeIO(prog(t, c1 - 0.6, c1 + 0.3)));
+    return { pos: V(ROW.x + tx, 1.6 + zc * 0.12, ROW.z + zc), tgt: V(ROW.x + tx, 1.5, ROW.z), fov: 40 };
   },
   consejo(t, d, cue) {
     blotter.visible = blotBottle.visible = true; lightAt(BLOT);
@@ -477,7 +556,7 @@ const SCENES = {
     const tn = cue.nojuz ?? d * 0.55;
     glow.position.copy(BLOT).add(V(0, 2, 1)); glow.color.set(0xfff0a0); glow.intensity = 6 * (1 - easeIO(prog(t, tn, tn + 1.2)));
     const p = easeIO(t / d);
-    return { pos: lerpV(BLOT.clone().add(V(0.4, 2.2, 7.4)), BLOT.clone().add(V(0.9, 2.0, 6.2)), p), tgt: BLOT.clone().add(V(1.2, 1.5, 0)), fov: 40 };
+    return { pos: lerpV(BLOT.clone().add(V(1.0, 2.3, 9.2)), BLOT.clone().add(V(1.3, 2.1, 8.2)), p), tgt: BLOT.clone().add(V(1.25, 1.4, 0)), fov: 40 };
   },
   final(t, d, cue) {
     hero.visible = pedestal.visible = true; lightAt(HERO);
@@ -510,7 +589,14 @@ window.renderAt = t => {
   const lt = t - seg.start, d = seg.end - seg.start;
   const cue = {};
   for (const [k, v] of Object.entries(seg.cues || {})) cue[k] = v - seg.start;
-  const sh = SCENES[seg.scene](lt, d, cue);
+  const pal = PALETA[seg.scene] || PALETA.gancho;
+  skyMat.uniforms.top.value.set(pal[0]); skyMat.uniforms.bot.value.set(pal[1]); scene.fog.color.set(pal[1]);
+  const sh = SCENES[seg.scene](lt, d, cue, t);
+  bokeh.material.color.set(pal[2]);
+  { const P = bokGeo.attributes.position;
+    for (let i = 0; i < BOKN; i++) { const [x, y, z, ph] = bokSeed[i];
+      P.setXYZ(i, sh.tgt.x + x + 0.5 * Math.sin(t * 0.4 + ph), y + 0.4 * Math.sin(t * 0.5 + ph * 2), sh.tgt.z + z); }
+    P.needsUpdate = true; }
   camera.position.copy(sh.pos).add(V(Math.sin(t * 1.3) * 0.04, Math.sin(t * 1.7 + 1) * 0.03, Math.cos(t * 1.1) * 0.04));
   camera.fov = sh.fov * (1 - 0.07 * (1 - easeOut(lt / 0.45)));
   camera.updateProjectionMatrix();
