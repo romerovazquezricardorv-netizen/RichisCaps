@@ -31,17 +31,7 @@ GUION = [
 ]
 DICHO = {}
 
-PILDORAS = {
-    "gancho": [("wow", "En otra persona", "huele increíble"), ("jarabe", "En ti", "huele a jarabe")],
-    "noeres": [("quim", "No estás maldito", "es química")],
-    "cocina": [("cocina", "Perfume = receta", "tu piel = la cocina")],
-    "grasa": [("grasa", "Piel grasosa", "el perfume dura más"), ("seca", "Piel seca", "se evapora más rápido")],
-    "calor": [("calor", "Más calor", "más proyección"), ("grita", "En el gym", "GRITA"), ("susurra", "En invierno", "susurra")],
-    "bacterias": [("bact", "Millones de bacterias", "crean tu olor natural")],
-    "nariz": [("noole", "Anosmia específica", "no detectan ciertos almizcles")],
-    "fatiga": [("acost", "Adaptación olfativa", "tu nariz se acostumbra")],
-    "consejo": [("prueba", "Pruébalo en tu piel", "y espera unos minutos")],
-}
+PILDORAS = {}   # sin etiquetas: solo los subtítulos de la voz
 
 
 def efectos(segs):
