@@ -517,6 +517,17 @@ def mezcla(tl):
             mix_in(sfx, tone(1400 + 300 * random.Random(par or 0).random(), 0.05, 0.06, 60), at)
         elif tipo == "spray":      # rocío de perfume: ráfaga de ruido suave
             mix_in(sfx, whoosh(d=0.7, v=0.16, seed=7), at)
+        elif tipo == "boing":      # resorte de caricatura
+            tp = np.arange(int(0.55 * SR)) / SR
+            f = 180 + 260 * np.exp(-tp * 5) * (1 + 0.35 * np.sin(2 * np.pi * 9 * tp))
+            mix_in(sfx, (0.22 * np.exp(-tp * 4.5) * np.sin(2 * np.pi * np.cumsum(f) / SR)).astype(np.float32), at)
+        elif tipo == "pop":        # burbuja que revienta
+            tp = np.arange(int(0.12 * SR)) / SR
+            f = 900 - 600 * tp / 0.12
+            mix_in(sfx, (0.2 * np.exp(-tp * 35) * np.sin(2 * np.pi * np.cumsum(f) / SR)).astype(np.float32), at)
+        elif tipo == "ding":       # campanita de acierto
+            for k, fr in enumerate((1318.5, 1975.5)):
+                mix_in(sfx, tone(fr, 1.2, 0.09, 3.5), at + k * 0.09)
     mus = music(total)
     env = np.convolve(np.abs(vo), np.ones(4410) / 4410, mode="same")
     duck = 1 - 0.5 * np.clip(env * 14, 0, 1)
