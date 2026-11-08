@@ -525,6 +525,10 @@ def mezcla(tl):
             tp = np.arange(int(0.12 * SR)) / SR
             f = 900 - 600 * tp / 0.12
             mix_in(sfx, (0.2 * np.exp(-tp * 35) * np.sin(2 * np.pi * np.cumsum(f) / SR)).astype(np.float32), at)
+        elif tipo == "beep":       # monitor en línea plana
+            tp = np.arange(int(1.4 * SR)) / SR
+            env = np.minimum(1, tp / 0.01) * np.minimum(1, (1.4 - tp) / 0.15)
+            mix_in(sfx, (0.07 * env * np.sin(2 * np.pi * 1000 * tp)).astype(np.float32), at)
         elif tipo == "ding":       # campanita de acierto
             for k, fr in enumerate((1318.5, 1975.5)):
                 mix_in(sfx, tone(fr, 1.2, 0.09, 3.5), at + k * 0.09)
