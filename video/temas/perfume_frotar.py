@@ -50,7 +50,7 @@ GOLPES = [
     ("resultado", "plana", 0.6, 0.0), ("consejo", "nunca", 0.8, 0.0),
 ]
 
-BARRA = True           # barra de progreso abajo
+BARRA = False          # sin barra de progreso
 MUSICA = "energica"    # bombo en cada tiempo, 112 bpm
 
 

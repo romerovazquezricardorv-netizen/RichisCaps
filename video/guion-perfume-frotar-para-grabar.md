@@ -46,7 +46,6 @@ Así que rocía, espera, y déjalo secar solo. Y si quieres, dale toquecitos, pe
 - **Sellos** que golpean la pantalla en los momentos clave (¡ALTO!, MITO, TOQUECITOS ✓, NUNCA FROTES), con su sonido de golpe.
 - **Sacudidas y acercamientos rápidos** en las revelaciones.
 - **Cortes más rápidos**: casi todas las escenas tienen dos o tres planos distintos.
-- **Barra de progreso** abajo, para que la gente se quede hasta el final.
 - **Música con bombo** (más movida que en los videos anteriores) y efectos nuevos: frote, barrido y golpe.
 - **Giro de mito** a la mitad («¿rompes las moléculas? No…») para mantener la atención, y una pregunta al final para que comenten.
 
