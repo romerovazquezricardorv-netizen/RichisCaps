@@ -865,16 +865,25 @@ const SCENES = {
   },
   cambios(t, d, cue, T) {
     bathScene(T);
-    const tc = cue.camb ?? d * 0.35, tf = cue.fc ?? d * 0.55;
-    const osc = t > tf ? Math.sin((t - tf) * 7) : 0;
-    setSteam(T, osc > 0 ? 1 : 0.1);
+    const tc = cue.camb ?? d * 0.35;
+    // calor de 0 (frío) a 1 (caliente): cambia suave en cada palabra
+    const marks = [[cue.fc, 0], [cue.c1, 1], [cue.f2, 0], [cue.c2, 1]].filter(([x]) => x !== undefined);
+    let heat = 0.55, prev = 0.55;
+    for (const [tm, v] of marks) { if (t >= tm - 0.12) { const k = easeIO(prog(t, tm - 0.12, tm + 0.28)); heat = lerp(prev, v, k); prev = v; } }
+    if (!marks.length || t < marks[0][0] - 0.12) heat = 0.55 + 0.1 * easeOut(prog(t, tc - 0.3, tc + 0.4));
+    setSteam(T, 0.15 + 0.85 * heat);
     thermo.visible = true; thermo.position.copy(BATH).add(V(1.7, 0.12, 0.3)); thermo.scale.setScalar(1.1);
-    thermo.userData.fill.scale.y = t > tf ? lerp(0.4, 2.2, 0.5 + 0.5 * osc) : lerp(0.4, 1.3, easeOut(prog(t, tc - 0.3, tc + 0.4)));
-    thermo.userData.bulb.material.color.set(osc > 0 ? 0xff2a3a : 0x3aa0ff);
-    bathBottle.rotation.z = 0.06 * Math.sin(T * 25) * (t > tf ? 1 : 0);
-    // el frasco "suda" y tirita
-    sweat.forEach((s, i) => { const a = (T * 0.9 + i / 6) % 1; s.visible = t > tf; s.position.copy(bathBottle.position).add(V(Math.sin(i * 2.1) * 0.45, 1.3 - a * 1.0, 0.3)); });
-    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.set(osc > 0 ? 0xff6a4a : 0x6ab0ff); glow.intensity = 6;
+    thermo.userData.fill.scale.y = lerp(0.35, 2.25, heat);
+    const hot = new THREE.Color(0xff2a3a), cold = new THREE.Color(0x3aa0ff), mix = cold.clone().lerp(hot, heat);
+    thermo.userData.bulb.material.color.copy(mix);
+    // el frasco tirita con el frío y "suda" con el calor (movimiento suave)
+    const shiver = (1 - heat) * (t > (marks[0]?.[0] ?? d) - 0.2 ? 1 : 0);
+    bathBottle.rotation.z = 0.035 * Math.sin(T * 14) * shiver;
+    bathBottle.position.x += 0.012 * Math.sin(T * 17) * shiver;
+    sweat.forEach((s2, i) => { const a = (T * 0.8 + i / 6) % 1; s2.visible = heat > 0.55; s2.position.copy(bathBottle.position).add(V(Math.sin(i * 2.1) * 0.45, 1.25 - a * 0.95, 0.32)); s2.scale.setScalar(clamp((heat - 0.55) / 0.3)); });
+    // escarcha brillante cuando hace frío
+    sparks.visible = true; setSparks(T, bathBottle.position.clone().add(V(0, 0.9, 0.2)), 0.75, 1.4, 0xcfeaff, clamp((0.5 - heat) / 0.4));
+    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.copy(new THREE.Color(0x6ab0ff).lerp(new THREE.Color(0xff6a4a), heat)); glow.intensity = 5;
     const p = easeIO(t / d);
     return { pos: lerpV(BATH.clone().add(V(0.6, 2.1, 7.4)), BATH.clone().add(V(0.8, 2.0, 6.6)), p), tgt: BATH.clone().add(V(0.6, 1.4, -0.8)), fov: 40 };
   },

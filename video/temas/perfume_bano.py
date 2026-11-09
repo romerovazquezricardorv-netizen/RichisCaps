@@ -15,7 +15,7 @@ GUION = [
                      "y el otro en un *cajón*{otro}."]),
     ("enemigos", ["El del baño tiene tres *enemigos*{ene}:", "el *calor*{calor} del agua caliente,", "la *humedad*{hum} del vapor,",
                   "y la *luz*{luz} de la ventana."]),
-    ("cambios", ["Y lo peor no es el calor,", "son los *cambios*{camb}:", "frío, caliente, frío, caliente{fc},", "todos los días."]),
+    ("cambios", ["Y lo peor no es el calor,", "son los *cambios*{camb}:", "*frío*{fc}, *caliente*{c1}, *frío*{f2}, *caliente*{c2},", "todos los días."]),
     ("meses", ["Unos meses después{meses}...", "el del cajón huele *igualito*{igualito}.", "Y el del baño{bano2}...",
                "más *oscuro*{osc},", "y con un olor *agrio*{agrio}, como a vinagre."]),
     ("porque", ["Eso pasa porque el calor y la luz *oxidan*{oxi} las moléculas,",
@@ -34,7 +34,7 @@ def efectos(segs):
     return [
         (c("gancho", "arru"), "boing", None), (c("experimento", "uno"), "pop", None), (c("experimento", "otro"), "pop", None),
         (c("enemigos", "calor"), "pop", None), (c("enemigos", "hum"), "pop", None), (c("enemigos", "luz"), "pop", None),
-        (c("cambios", "fc"), "tin", 0), (c("cambios", "fc") + 0.5, "tin", 1), (c("cambios", "fc") + 1.0, "tin", 2),
+        (c("cambios", "fc"), "tin", 0), (c("cambios", "c1"), "tin", 1), (c("cambios", "f2"), "tin", 2), (c("cambios", "c2"), "tin", 3),
         (c("meses", "igualito"), "ding", None), (c("meses", "agrio"), "boing", None),
         (c("porque", "oxi"), "boom", None), (c("porque", "morir"), "pop", None),
         (c("consejo", "caja"), "ding", None), (c("final", "agra"), "pop", None),
