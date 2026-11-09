@@ -688,37 +688,70 @@ const bathBottle = makeBottle(0xffc46b, 'PARFUM'), roomBottle = makeBottle(0xffc
 scene.add(bathBottle, roomBottle);
 const GOODC = new THREE.Color(0xffc46b), BADC = new THREE.Color(0x7a4a14);
 
-// ------------------------------------------------------------------ baño
+// ------------------------------------------------------------------ baño (piso grueso para que no parpadee con el suelo)
+let EXPO = 1.1;
 const bath = new THREE.Group();
-{ const wall = new THREE.Mesh(new THREE.PlaneGeometry(9, 7), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#8ec4d6', '#5e94a8'); t.repeat.set(3, 2.3); return t; })(), roughness: 0.3 }));
-  wall.position.set(0, 3.5, -2); bath.add(wall);
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#b8c4cc', '#8894a0', 6); t.repeat.set(5, 4); return t; })(), roughness: 0.35 }));
-  fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, 4.0); fl.receiveShadow = true; bath.add(fl);
-  const shelf = new THREE.Mesh(new RoundedBoxGeometry(2.2, 0.12, 0.8, 4, 0.04), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })); shelf.position.set(0, 1.2, -1.5); bath.add(shelf);
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.3, 0.15, 32), new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.9, roughness: 0.2 })); head.position.set(-2.8, 5.2, -1.2); head.rotation.x = 0.3; bath.add(head);
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 12), head.material); pipe.position.set(-2.8, 5.7, -1.7); pipe.rotation.x = 1.0; bath.add(pipe);
-  const tub = new THREE.Mesh(new RoundedBoxGeometry(3.2, 1.0, 1.6, 6, 0.3), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })); tub.position.set(-2.8, 0.5, -0.9); bath.add(tub);
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.6), new THREE.MeshBasicMaterial({ color: 0xfff2b0 })); win.position.set(2.8, 4.4, -1.98); bath.add(win);
-  const mirror = new THREE.Mesh(new RoundedBoxGeometry(1.6, 1.9, 0.05, 4, 0.2), new THREE.MeshStandardMaterial({ color: 0xcfe6ff, metalness: 1, roughness: 0.05 })); mirror.position.set(0, 2.6, -1.96); bath.add(mirror);
-  bath.traverse(o => { if (o.isMesh) { o.receiveShadow = true; } }); }
+{ const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 7.5, 0.2), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#9fcfdc', '#6fa2b4'); t.repeat.set(3.4, 2.6); return t; })(), roughness: 0.25, metalness: 0.05 }));
+  wall.position.set(0, 3.7, -2.1); bath.add(wall);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 12), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#a9b3bc', '#7d8792', 6); t.repeat.set(5, 4); return t; })(), roughness: 0.3, metalness: 0.1 }));
+  fl.position.set(0, 0.06, 3.9); fl.receiveShadow = true; bath.add(fl);
+  const white = new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.25 });
+  const shelf = new THREE.Mesh(new RoundedBoxGeometry(2.8, 0.12, 0.8, 4, 0.04), white); shelf.position.set(0.2, 1.2, -1.6); bath.add(shelf);
+  [-1.0, 1.4].forEach(x => { const br = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.5), GOLD); br.position.set(x, 1.0, -1.75); bath.add(br); });
+  // regadera con mampara de vidrio
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.95, roughness: 0.15 });
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.3, 0.15, 32), chrome); head.position.set(-3.0, 5.0, -1.3); head.rotation.x = 0.3; bath.add(head);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 12), chrome); pipe.position.set(-3.0, 5.5, -1.8); pipe.rotation.x = 1.0; bath.add(pipe);
+  const tub = new THREE.Mesh(new RoundedBoxGeometry(3.0, 1.0, 1.7, 6, 0.3), white); tub.position.set(-3.4, 0.62, -1.0); bath.add(tub);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.6, 1.7), new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transmission: 0.9, roughness: 0.05, thickness: 0.05 })); panel.position.set(-1.85, 2.9, -1.0); bath.add(panel);
+  const panelEdge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.6, 0.06), chrome); panelEdge.position.set(-1.85, 2.9, -0.15); bath.add(panelEdge);
+  // ventana con marco
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), new THREE.MeshBasicMaterial({ color: 0xfff1b8 })); win.position.set(2.9, 4.3, -1.99); bath.add(win);
+  [[2.9, 5.03, 1.75, 0.08], [2.9, 3.57, 1.75, 0.08], [2.07, 4.3, 0.08, 1.5], [3.73, 4.3, 0.08, 1.5], [2.9, 4.3, 0.06, 1.4]].forEach(([x, y, w, h]) => { const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.08), white); f.position.set(x, y, -1.95); bath.add(f); });
+  // espejo redondeado con marco dorado
+  const mirror = new THREE.Mesh(new RoundedBoxGeometry(1.7, 1.9, 0.05, 4, 0.25), new THREE.MeshStandardMaterial({ color: 0xbcd8ec, metalness: 0.9, roughness: 0.08 })); mirror.position.set(0.2, 2.55, -1.97); bath.add(mirror);
+  const mframe = new THREE.Mesh(new RoundedBoxGeometry(1.85, 2.05, 0.04, 4, 0.3), GOLD); mframe.position.set(0.2, 2.55, -2.0); bath.add(mframe);
+  // toallero con toalla
+  const rack = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.3, 12), GOLD); rack.rotation.z = Math.PI / 2; rack.position.set(2.7, 2.35, -1.85); bath.add(rack);
+  const towel = new THREE.Mesh(new RoundedBoxGeometry(1.0, 1.3, 0.12, 4, 0.05), new THREE.MeshStandardMaterial({ color: 0xff9ab8, roughness: 0.95 })); towel.position.set(2.7, 1.75, -1.8); bath.add(towel);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.1, 0.13), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })); stripe.position.set(2.7, 1.3, -1.8); bath.add(stripe);
+  // tapete, maceta y cosas en la repisa
+  const mat = new THREE.Mesh(new RoundedBoxGeometry(2.2, 0.06, 1.3, 4, 0.03), new THREE.MeshStandardMaterial({ color: 0x6fc0b0, roughness: 1 })); mat.position.set(-0.6, 0.15, 0.9); bath.add(mat);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.25, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0xe0a070, roughness: 0.7 })); pot.position.set(3.4, 0.42, -0.9); bath.add(pot);
+  for (let i = 0; i < 7; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 1.1, 8), new THREE.MeshStandardMaterial({ color: 0x3aa05a, roughness: 0.6 })); const a = i / 7 * 6.28; lf.position.set(3.4 + Math.cos(a) * 0.15, 1.15, -0.9 + Math.sin(a) * 0.15); lf.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); bath.add(lf); }
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.38, 20), new THREE.MeshStandardMaterial({ color: 0x8fd0ff, roughness: 0.3 })); cup.position.set(-0.9, 1.45, -1.6); bath.add(cup);
+  [[0xff6a8a, -0.05], [0x6ad0ff, 0.06]].forEach(([c, x]) => { const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 8), new THREE.MeshStandardMaterial({ color: c })); tb.position.set(-0.9 + x, 1.7, -1.6); tb.rotation.z = x * 3; bath.add(tb); });
+  const soap = new THREE.Mesh(new RoundedBoxGeometry(0.42, 0.16, 0.26, 4, 0.07), new THREE.MeshStandardMaterial({ color: 0xffd0e0, roughness: 0.4 })); soap.position.set(1.1, 1.34, -1.55); bath.add(soap);
+  bath.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = o !== fl && o !== wall; } }); }
 bath.position.copy(BATH); scene.add(bath);
-const sunbeam = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 1.6, 5, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-sunbeam.position.copy(BATH).add(V(1.5, 3.2, -1.2)); sunbeam.rotation.z = -0.9; scene.add(sunbeam);
-const water = Array.from({ length: 18 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x9fdcff, emissive: 0x3a9aff, emissiveIntensity: 0.4 })); m.scale.y = 2.2; scene.add(m); return m; });
-const steamB = Array.from({ length: 14 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, roughness: 1, depthWrite: false })); scene.add(m); return m; });
+// sol que entra por la ventana: luz real, no un cono
+const sun = new THREE.SpotLight(0xffe2a0, 0, 14, 0.5, 0.7, 1);
+sun.position.copy(BATH).add(V(3.6, 5.0, 0.5)); sun.target.position.copy(BATH).add(V(0.2, 1.2, -1.4)); sun.castShadow = true; sun.shadow.mapSize.set(512, 512);
+scene.add(sun, sun.target);
+const sunbeam = new THREE.Group(); scene.add(sunbeam);   // (se mantiene por compatibilidad; ya no se dibuja)
+const water = Array.from({ length: 22 }, () => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.025, 0.14, 4, 8), new THREE.MeshStandardMaterial({ color: 0xbfe8ff, emissive: 0x3a9aff, emissiveIntensity: 0.35, roughness: 0.1 })); scene.add(m); return m; });
+// vapor suave (sprites difuminados en lugar de esferas)
+const steamB = Array.from({ length: 22 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false })); scene.add(m); return m; });
 function setSteam(T, amount) {
-  steamB.forEach((m, i) => { const a = (T * 0.25 + i / 14) % 1; m.visible = amount > 0.01; m.position.copy(BATH).add(V(-2.8 + Math.sin(i * 2.3 + T * 0.3) * 1.6 + a * 2.5, 1.0 + a * 4.5, -0.8 + Math.cos(i) * 0.6)); m.scale.setScalar(0.6 + a * 1.4); m.material.opacity = 0.4 * amount * (1 - a); });
-  water.forEach((m, i) => { const a = (T * 2.2 + i / 18) % 1; m.visible = amount > 0.01; m.position.copy(BATH).add(V(-2.8 + Math.sin(i * 1.7) * 0.35, 5.0 - a * 4.2, -1.1 + Math.cos(i * 2.1) * 0.3)); });
+  steamB.forEach((m, i) => { const a = (T * 0.18 + i / 22) % 1; m.visible = amount > 0.01;
+    m.position.copy(BATH).add(V(-3.2 + Math.sin(i * 2.3 + T * 0.3) * 1.0 + a * 3.2, 1.2 + a * 4.2, -0.9 + Math.cos(i * 1.3) * 0.8)); m.scale.setScalar(1.4 + a * 3.0); m.material.opacity = 0.32 * amount * Math.sin(a * Math.PI); });
+  water.forEach((m, i) => { const a = (T * 2.2 + i / 22) % 1; m.visible = amount > 0.01; m.position.copy(BATH).add(V(-3.0 + Math.sin(i * 1.7) * 0.35, 4.8 - a * 3.9, -1.2 + Math.cos(i * 2.1) * 0.3)); });
 }
 
 // ------------------------------------------------------------------ recámara con cajonera
 const room = new THREE.Group();
-{ const wall = new THREE.Mesh(new THREE.PlaneGeometry(9, 7), new THREE.MeshStandardMaterial({ color: 0x3a2a4a, roughness: 0.9 })); wall.position.set(0, 3.5, -2); room.add(wall);
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.6 })); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0.01, 4.0); fl.receiveShadow = true; room.add(fl);
+{ const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 7.5, 0.2), new THREE.MeshStandardMaterial({ color: 0x4a3458, roughness: 0.9 })); wall.position.set(0, 3.7, -2.1); room.add(wall);
+  const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.04, 48), new THREE.MeshStandardMaterial({ color: 0xc86a8a, roughness: 1 })); rug.position.set(1.4, 0.14, 0.8); room.add(rug);
+  const frameP = new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.0, 0.06, 4, 0.04), GOLD); frameP.position.set(-2.4, 3.6, -1.98); room.add(frameP);
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x6fa8d8 })); pic.position.set(-2.4, 3.6, -1.94); room.add(pic);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: 0.5 })); fl.position.set(0, 0.06, 3.9); fl.receiveShadow = true; room.add(fl);
   const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.5 });
   const body = new THREE.Mesh(new RoundedBoxGeometry(3.0, 2.2, 1.4, 4, 0.06), wood); body.position.set(0, 1.1, -1.2); room.add(body);
   [0.55, 1.65].forEach(y => { const k = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), GOLD); k.position.set(0, y, -0.48); room.add(k); });
-  const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.6, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xffe0b0, emissive: 0xffc070, emissiveIntensity: 0.8, side: THREE.DoubleSide })); lamp.position.set(1.0, 2.75, -1.2); room.add(lamp);
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, 0.5, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0xffe0b0, emissive: 0xffc070, emissiveIntensity: 0.8, side: THREE.DoubleSide })); lamp.position.set(1.0, 2.78, -1.2); room.add(lamp);
+  const lpole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.36, 10), GOLD); lpole.position.set(1.0, 2.4, -1.2); room.add(lpole);
+  const lbase = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.1, 24), GOLD); lbase.position.set(1.0, 2.25, -1.2); room.add(lbase);
+  const bulbL = new THREE.PointLight(0xffc070, 3, 6, 1.5); bulbL.position.set(1.0, 2.7, -1.0); room.add(bulbL);
   room.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); }
 room.position.copy(ROOM); scene.add(room);
 const drawer = new THREE.Group();
@@ -774,16 +807,17 @@ function resetWorld() {
   youBottle.visible = palBottle.visible = false; you.userData.nose.visible = false;
   [bathBottle, roomBottle].forEach(b => { b.scale.setScalar(1); b.rotation.set(0, 0, 0); b.userData.liquid.material.color.copy(GOODC); b.userData.liquid.material.emissive.copy(GOODC); });
   villains.forEach(v => v.scale.setScalar(0.55));
+  EXPO = 1.1; sun.intensity = 0;
   scene.fog.near = 22; scene.fog.far = 70;
 }
 function lightAt(c) { key.position.copy(c).add(V(-5, 10, 7)); key.target.position.copy(c); rim.position.copy(c).add(V(6, 4, -8)); rim.target.position.copy(c); }
 const blinkAt = (T, seed) => { const ph = (T * 0.35 + seed) % 1; return ph < 0.04 ? 0.1 : 1; };
 const hopF = (T, f = 3, a = 0.08) => Math.abs(Math.sin(T * f)) * a;
 function decay(b, k) { const c = GOODC.clone().lerp(BADC, k); b.userData.liquid.material.color.copy(c); b.userData.liquid.material.emissive.copy(c); }
-function bathScene(T) { lightAt(BATH); bath.visible = true; bathBottle.visible = true; bathBottle.position.copy(BATH).add(V(0, 1.26, -1.5)); bathBottle.scale.setScalar(0.5); bathBottle.rotation.y = -0.2; }
+function bathScene(T) { lightAt(BATH); bath.visible = true; EXPO = 0.95; sun.intensity = 40; bathBottle.visible = true; bathBottle.position.copy(BATH).add(V(0, 1.26, -1.5)); bathBottle.scale.setScalar(0.5); bathBottle.rotation.y = -0.2; }
 function roomScene(open) { lightAt(ROOM); room.visible = drawer.visible = pbox.visible = roomBottle.visible = true;
   drawer.position.copy(ROOM).add(V(0, 1.1, -1.2 + 0.9 * open)); pbox.position.copy(drawer.position).add(V(-0.55, -0.37, 0)); roomBottle.position.copy(drawer.position).add(V(0.55, -0.37, 0)); roomBottle.scale.setScalar(0.32); roomBottle.rotation.y = -0.3; }
-const shotBath = (p, z = 9.4) => ({ pos: lerpV(BATH.clone().add(V(0.4, 3.0, z)), BATH.clone().add(V(0.2, 2.8, z - 1.2)), p), tgt: BATH.clone().add(V(0, 1.5, -1)), fov: 40 });
+const shotBath = (p, z = 8.6) => ({ pos: lerpV(BATH.clone().add(V(0.4, 2.2, z)), BATH.clone().add(V(0.2, 2.1, z - 1.0)), p), tgt: BATH.clone().add(V(0.1, 1.55, -1)), fov: 40 });
 
 const SCENES = {
   gancho(t, d, cue, T) {
@@ -791,12 +825,12 @@ const SCENES = {
     const ta = cue.arru ?? d * 0.6;
     setSteam(T, 0.8);
     sunbeam.visible = true;
-    you.position.copy(BATH).add(V(1.6, 0, 0.4));
+    you.position.copy(BATH).add(V(1.6, 0.12, 0.4));
     setBuddy(you, { hop: hopF(T, 3, 0.05) + (t > ta ? 0.35 * Math.sin(clamp((t - ta) / 0.4) * Math.PI) : 0), mood: t > ta ? 'o' : 'smile', mouthOpen: 1.3, eye: t > ta ? 1.45 : 1, look: [-0.7, 0.5], blink: blinkAt(T, 0.3), brow: t > ta ? 0.9 : 0, rotY: -0.5, armL: t > ta ? 2.0 : 0 });
     qMark.visible = t > ta; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, ta, ta + 0.5)) * 0.6)); qMark.position.copy(you.position).add(V(0.8, 2.3, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
-    glow.position.copy(BATH).add(V(0, 3, 2)); glow.color.set(0xbfe6ff); glow.intensity = 2;
+    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.set(0xbfe6ff); glow.intensity = 2;
     const punch = t > ta ? 1 - 0.2 * easeOut(prog(t, ta, ta + 0.3)) : 1;
-    return { pos: BATH.clone().add(V(0.6, 2.8, 9.6 * punch)), tgt: BATH.clone().add(V(0.6, 1.5, -0.5)), fov: 40 };
+    return { pos: BATH.clone().add(V(0.6, 2.1, 8.4 * punch)), tgt: BATH.clone().add(V(0.6, 1.55, -0.5)), fov: 40 };
   },
   experimento(t, d, cue, T) {
     const tu = cue.uno ?? d * 0.5, to = cue.otro ?? d * 0.8;
@@ -820,13 +854,13 @@ const SCENES = {
     villains.forEach((v, i) => {
       const p = spring(prog(t, cs[i] - 0.1, cs[i] + 0.4));
       v.visible = p > 0.01;
-      v.position.copy(BATH).add(V((i - 1) * 1.2, 0.02, 1.4));
+      v.position.copy(BATH).add(V((i - 1) * 1.2, 0.12, 1.4));
       v.scale.setScalar(0.55 * Math.max(0.001, p));
       setBuddy(v, { hop: hopF(T, 4 + i, 0.15), mood: 'frown', eye: 1, look: [i === 0 ? 0.4 : i === 2 ? -0.4 : 0, 0.6], blink: blinkAt(T, i * 0.3), brow: -1, armR: 1.6 + 0.4 * Math.sin(T * 8 + i), armL: 0.3, rotY: (1 - i) * 0.3 });
       if (v.userData.acc) v.userData.acc.rotation.y = T * (i === 2 ? 1.5 : 4);
     });
     bathBottle.rotation.z = 0.04 * Math.sin(T * 20) * (t > cs[0] ? 1 : 0);
-    glow.position.copy(BATH).add(V(0, 3, 2)); glow.color.set(0xff8a3a); glow.intensity = 6;
+    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.set(0xff8a3a); glow.intensity = 6;
     return shotBath(easeIO(t / d), 10.0);
   },
   cambios(t, d, cue, T) {
@@ -834,15 +868,15 @@ const SCENES = {
     const tc = cue.camb ?? d * 0.35, tf = cue.fc ?? d * 0.55;
     const osc = t > tf ? Math.sin((t - tf) * 7) : 0;
     setSteam(T, osc > 0 ? 1 : 0.1);
-    thermo.visible = true; thermo.position.copy(BATH).add(V(1.7, 0, 0.3)); thermo.scale.setScalar(1.1);
+    thermo.visible = true; thermo.position.copy(BATH).add(V(1.7, 0.12, 0.3)); thermo.scale.setScalar(1.1);
     thermo.userData.fill.scale.y = t > tf ? lerp(0.4, 2.2, 0.5 + 0.5 * osc) : lerp(0.4, 1.3, easeOut(prog(t, tc - 0.3, tc + 0.4)));
     thermo.userData.bulb.material.color.set(osc > 0 ? 0xff2a3a : 0x3aa0ff);
     bathBottle.rotation.z = 0.06 * Math.sin(T * 25) * (t > tf ? 1 : 0);
     // el frasco "suda" y tirita
     sweat.forEach((s, i) => { const a = (T * 0.9 + i / 6) % 1; s.visible = t > tf; s.position.copy(bathBottle.position).add(V(Math.sin(i * 2.1) * 0.45, 1.3 - a * 1.0, 0.3)); });
-    glow.position.copy(BATH).add(V(0, 3, 2)); glow.color.set(osc > 0 ? 0xff6a4a : 0x6ab0ff); glow.intensity = 6;
+    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.set(osc > 0 ? 0xff6a4a : 0x6ab0ff); glow.intensity = 6;
     const p = easeIO(t / d);
-    return { pos: lerpV(BATH.clone().add(V(0.6, 2.6, 7.6)), BATH.clone().add(V(0.8, 2.4, 6.8)), p), tgt: BATH.clone().add(V(0.6, 1.3, -0.8)), fov: 40 };
+    return { pos: lerpV(BATH.clone().add(V(0.6, 2.1, 7.4)), BATH.clone().add(V(0.8, 2.0, 6.6)), p), tgt: BATH.clone().add(V(0.6, 1.4, -0.8)), fov: 40 };
   },
   meses(t, d, cue, T) {
     const tm = cue.meses ?? 0.3, ti = cue.igualito ?? d * 0.3, tb = cue.bano2 ?? d * 0.5, to = cue.osc ?? d * 0.65, ta = cue.agrio ?? d * 0.8;
@@ -856,21 +890,21 @@ const SCENES = {
     if (t < tb - 0.1) {      // el del cajón: igualito
       roomScene(1);
       roomBottle.rotation.y = T * 0.6; roomBottle.position.y += 0.35 * spring(prog(t, ti - 0.2, ti + 0.3));
-      you.position.copy(ROOM).add(V(1.7, 0, 0.6));
+      you.position.copy(ROOM).add(V(1.6, 0.12, 0.8));
       setBuddy(you, { hop: hopF(T, 3, 0.06), mood: 'smile', eye: 1.2, look: [-0.7, -0.2], blink: blinkAt(T, 0.4), rotY: -0.5 });
-      setHearts(t, ROOM.clone().add(V(0.6, 2.2, 0)), ti, 4, 0.8);
+      setHearts(t, ROOM.clone().add(V(0.4, 1.5, 0.3)), ti, 4, 0.8);
       spot.position.copy(ROOM).add(V(0.5, 5, 2)); spot.target.position.copy(ROOM).add(V(0, 1, -0.3)); spot.intensity = 40;
       return { pos: ROOM.clone().add(V(0.8, 3.0, 6.6)), tgt: ROOM.clone().add(V(0.6, 1.3, -0.4)), fov: 40 };
     }
     bathScene(T);              // el del baño: oscuro y agrio
     decay(bathBottle, easeIO(prog(t, to - 0.3, to + 0.5)));
-    you.position.copy(BATH).add(V(1.5, 0, 0.4));
+    you.position.copy(BATH).add(V(1.5, 0.12, 0.4));
     const sour = t > ta;
     setBuddy(you, { hop: sour ? 0.3 * Math.sin(clamp((t - ta) / 0.4) * Math.PI) : 0, mood: sour ? 'frown' : 'o', mouthOpen: 0.8, eye: sour ? 0.6 : 1.1, look: [-0.7, 0.4], blink: sour ? 0.3 : 1, brow: sour ? -0.9 : 0.5, rotY: -0.5, squash: sour ? 0.1 * Math.exp(-(t - ta) * 4) : 0 });
     setStink(t, bathBottle.position.clone().add(V(0.3, 0.2, 0.6)), ta, 0.55);
     vinegar.visible = sour; vinegar.position.copy(BATH).add(V(-1.0, 1.26 + 0.1 * Math.sin(T * 3), -1.3)); vinegar.scale.setScalar(Math.max(0.001, spring(prog(t, ta + 0.1, ta + 0.6)) * 0.55)); vinegar.rotation.set(0, T, 0.2 * Math.sin(T * 5));
-    glow.position.copy(BATH).add(V(0, 3, 2)); glow.color.set(0x9ad04a); glow.intensity = sour ? 6 : 3;
-    return { pos: BATH.clone().add(V(0.6, 2.6, 7.4)), tgt: BATH.clone().add(V(0.3, 1.3, -0.8)), fov: 40 };
+    glow.position.copy(BATH).add(V(1.5, 2.0, 3)); glow.color.set(0x9ad04a); glow.intensity = sour ? 6 : 3;
+    return { pos: BATH.clone().add(V(0.6, 2.1, 7.2)), tgt: BATH.clone().add(V(0.3, 1.45, -0.8)), fov: 40 };
   },
   porque(t, d, cue, T) {
     lightAt(ZOOM);
@@ -888,7 +922,7 @@ const SCENES = {
     zMol.count = n; zMol.instanceMatrix.needsUpdate = true; zMol.instanceColor.needsUpdate = true;
     // rayos de calor y de luz que pegan
     villains[0].visible = villains[2].visible = t > to - 0.2;
-    [0, 2].forEach((vi, k) => { const v = villains[vi]; v.position.copy(ZOOM).add(V(k ? 1.7 : -1.7, 0, 1.6)); v.scale.setScalar(0.5 * Math.max(0.001, spring(prog(t, to - 0.2, to + 0.3))));
+    [0, 2].forEach((vi, k) => { const v = villains[vi]; v.position.copy(ZOOM).add(V(k ? 1.45 : -1.45, 0.5 + 0.15 * Math.sin(T * 3 + k), 2.4)); v.scale.setScalar(0.5 * Math.max(0.001, spring(prog(t, to - 0.2, to + 0.3))));
       setBuddy(v, { hop: hopF(T, 5, 0.12), mood: 'frown', look: [k ? -0.6 : 0.6, 0.4], blink: 1, brow: -1, armR: 1.8 + 0.3 * Math.sin(T * 10), rotY: k ? -0.5 : 0.5 }); if (v.userData.acc) v.userData.acc.rotation.y = T * 3; });
     sparks.visible = true; setSparks(T, ZOOM.clone().add(V(0, 2.3, 0)), 1.6, 2.6, t > to ? 0xff8a6a : 0xffffff, 0.8);
     glow.position.copy(ZOOM).add(V(0, 3, 3)); glow.color.set(0xff8a6a); glow.intensity = t > to ? 10 + 4 * Math.sin(T * 12) : 4;
@@ -901,14 +935,14 @@ const SCENES = {
     roomBottle.visible = t < tc;
     pbox.position.x += t > tc ? 0 : 0;
     lightAt(ROOM);
-    you.position.copy(ROOM).add(V(1.8, 0, 0.6));
+    you.position.copy(ROOM).add(V(1.6, 0.12, 0.8));
     setBuddy(you, { hop: hopF(T, 3, 0.06), mood: 'smile', eye: t > tc ? 1.25 : 1, look: [-0.7, -0.2], blink: blinkAt(T, 0.5), armR: t > tc ? 2.3 : 0.2, rotY: -0.5 });
     check.visible = t > tc + 0.5; check.scale.setScalar(Math.max(0.001, spring(prog(t, tc + 0.5, tc + 1.0)) * 0.9)); check.position.copy(ROOM).add(V(-0.3, 2.5, 0.2)); check.rotation.y = 0.3 * Math.sin(T * 2);
     spot.position.copy(ROOM).add(V(0.5, 5, 2)); spot.target.position.copy(ROOM).add(V(0, 1, -0.3)); spot.intensity = 30;
     sparks.visible = true; setSparks(T, ROOM.clone().add(V(0, 1.4, 0)), 1.8, 2, 0xffc070, 0.6);
     glow.position.copy(ROOM).add(V(0, 3, 2)); glow.color.set(0xffc070); glow.intensity = 5;
     const p = easeIO(t / d);
-    return { pos: lerpV(ROOM.clone().add(V(0.6, 3.4, 7.6)), ROOM.clone().add(V(0.6, 3.1, 6.8)), p), tgt: ROOM.clone().add(V(0.4, 1.4, -0.4)), fov: 40 };
+    return { pos: lerpV(ROOM.clone().add(V(0.8, 3.0, 8.0)), ROOM.clone().add(V(0.8, 2.8, 7.2)), p), tgt: ROOM.clone().add(V(0.6, 1.5, -0.4)), fov: 40 };
   },
   final(t, d, cue, T) {
     lightAt(DUO2);
@@ -958,6 +992,7 @@ window.renderAt = t => {
     a.setXYZ(i, sh.tgt.x + x + Math.sin(t * 0.3 + ph) * 0.6, ((y + t * 0.15) % 7), sh.tgt.z + z + Math.cos(t * 0.25 + ph) * 0.6);
   }
   a.needsUpdate = true;
+  renderer.toneMappingExposure = EXPO;
   renderer.render(scene, camera);
   return renderer.domElement.toDataURL('image/jpeg', 0.95);
 };
