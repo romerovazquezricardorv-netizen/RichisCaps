@@ -1025,7 +1025,7 @@ const SCENES = {
     stage(T);
     const tr = cue.rocia ?? 0.1, te = cue.espera ?? d * 0.25, tt = cue.toques ?? d * 0.6, tn = cue.nunca ?? d * 0.85;
     placeArm(armR, RW, clamp(prog(t, tr + 0.3, tr + 0.6)) * (t > te ? clamp(1 - (t - te) * 0.35) : 1));
-    if (t < te) sprayAt(t, RW, tr, T, 1);
+    if (t < Math.max(te, tr + 0.9)) sprayAt(t, RW, tr, T, 1);
     if (t > te - 0.1 && t < tt - 0.12) {     // espera: el reloj corre y se seca solo
       clock.visible = true; clock.position.copy(RW).add(V(-1.3, 1.4, -0.3)); clock.scale.setScalar(Math.max(0.001, spring(prog(t, te - 0.1, te + 0.3)) * 0.55));
       clock.userData.hand.rotation.z = -T * 4;
