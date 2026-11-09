@@ -299,6 +299,32 @@ def music(total):
     return out * fade
 
 
+def kick(v=0.5):
+    tp = np.arange(int(0.32 * SR)) / SR
+    f = 45 + 110 * np.exp(-tp * 30)
+    return (v * np.exp(-tp * 11) * np.sin(2 * np.pi * np.cumsum(f) / SR)).astype(np.float32)
+
+
+def music_energica(total):
+    """Colchón más movido (112 bpm): el mismo ambiente con bombo en cada tiempo y palmada en el 2 y el 4."""
+    out = music(total) * 0.85
+    n = len(out)
+    beat = 60 / 112
+    k = kick(0.16)
+    for i in range(int(total / beat) + 1):
+        s = int(i * beat * SR)
+        if s >= n:
+            break
+        e = min(n, s + len(k))
+        out[s:e] += k[:e - s]
+        if i % 2 == 1:
+            c = whoosh(d=0.09, v=0.05, seed=40 + i % 3)
+            e = min(n, s + len(c))
+            out[s:e] += c[:e - s]
+    t = np.arange(n) / SR
+    return out * np.minimum(1, np.minimum(t / 0.3, (total - t) / 1.5))
+
+
 def mix_in(buf, x, at):
     a = int(at * SR)
     if a < 0 or a >= len(buf):
@@ -532,7 +558,16 @@ def mezcla(tl):
         elif tipo == "ding":       # campanita de acierto
             for k, fr in enumerate((1318.5, 1975.5)):
                 mix_in(sfx, tone(fr, 1.2, 0.09, 3.5), at + k * 0.09)
-    mus = music(total)
+        elif tipo == "whoosh":     # barrido rápido
+            mix_in(sfx, whoosh(d=0.5, v=0.16, seed=int(at * 10)), at - 0.15)
+        elif tipo == "golpe":      # sello que cae: golpe grave + chasquido
+            mix_in(sfx, boom(0.45)[:int(0.5 * SR)], at)
+            mix_in(sfx, tick(0.35, seed=5) * 1.0, at)
+            mix_in(sfx, whoosh(d=0.25, v=0.12, seed=9), at - 0.2)
+        elif tipo == "frote":      # fricción: ráfagas cortas de ruido
+            for k in range(6):
+                mix_in(sfx, whoosh(d=0.12, v=0.11, seed=20 + k), at + k * 0.11)
+    mus = music(total) if getattr(TEMA, "MUSICA", "") != "energica" else music_energica(total)
     env = np.convolve(np.abs(vo), np.ones(4410) / 4410, mode="same")
     duck = 1 - 0.5 * np.clip(env * 14, 0, 1)
     out = vo * 1.0 + sfx + mus * duck * 1.3
@@ -668,19 +703,103 @@ def degradado():
     return Image.fromarray(g, "RGBA")
 
 
+@lru_cache(maxsize=16)
+def sello_image(text, color):
+    f = F(96, "Inter-Black.otf" if os.path.exists(os.path.join(FONT_DIRS[0], "Inter-Black.otf")) else "Inter-ExtraBold.otf")
+    txt = text.replace("✓", "").strip()
+    l, tp, r, b = f.getbbox(txt)
+    padx, pady, borde = 46, 26, 9
+    extra = 90 if "✓" in text else 0
+    w, h = r - l + 2 * padx + extra, 96 + 2 * pady
+    im = Image.new("RGBA", (w + 40, h + 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((20, 20, 20 + w, 20 + h), radius=26, fill=color + (240,), outline=WHITE + (255,), width=borde)
+    d.text((20 + padx - l, 20 + h / 2), txt, font=f, fill=WHITE, anchor="lm")
+    if extra:   # palomita dibujada (la fuente no trae el símbolo)
+        x0, y0 = 20 + w - padx - 62, 20 + h / 2
+        d.line([(x0, y0), (x0 + 20, y0 + 22), (x0 + 60, y0 - 26)], fill=WHITE, width=14, joint="curve")
+    sombra = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    sombra.putalpha(im.getchannel("A").point(lambda v: int(v * 0.6)).filter(ImageFilter.GaussianBlur(12)))
+    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    out.alpha_composite(sombra, (0, 8))
+    out.alpha_composite(im)
+    return out
+
+
+def sellos_de(tl):
+    segs = {s["scene"]: s for s in tl["segments"]}
+    out = []
+    for esc, cue, txt, col, dur in getattr(TEMA, "SELLOS", []):
+        if esc in segs and cue in segs[esc]["cues"]:
+            out.append((segs[esc]["cues"][cue], dur, txt, tuple(col)))
+    return out
+
+
+def draw_sellos(img, sellos, t):
+    for k, (a, dur, txt, col) in enumerate(sellos):
+        if a - 0.02 <= t < a + dur:
+            p = (t - a) / 0.32
+            s = 1.0 + 1.3 * (1 - ease_out(p * 1.6)) if p < 0.62 else 1 + 0.05 * math.exp(-(p - 0.62) * 6) * math.sin((p - 0.62) * 20)
+            alpha = clamp((t - a + 0.02) / 0.08) * clamp((a + dur - t) / 0.18)
+            im = sello_image(txt, col).rotate(-6 if k % 2 == 0 else 5, resample=Image.BICUBIC, expand=True)
+            paste_scaled(img, im, W / 2, getattr(TEMA, "SELLO_Y", 1250), s, alpha)
+
+
+def golpes_de(tl):
+    segs = {s["scene"]: s for s in tl["segments"]}
+    return [(segs[e]["cues"][c], f, fl) for e, c, f, fl in getattr(TEMA, "GOLPES", []) if e in segs and c in segs[e]["cues"]]
+
+
+def aplicar_golpes(img, golpes, t):
+    """Acercamiento rápido y sacudida que se apagan en ~0.4 s; destello blanco opcional."""
+    z, dx, dy, flash = 0.0, 0.0, 0.0, 0.0
+    for a, f, fl in golpes:
+        x = t - a
+        if 0 <= x < 0.6:
+            e = math.exp(-x * 9)
+            z += 0.07 * f * e
+            dx += 26 * f * e * math.sin(x * 70)
+            dy += 18 * f * e * math.cos(x * 55)
+            flash += fl * math.exp(-x * 14)
+    if z > 0.001 or abs(dx) > 0.5:
+        s = 1 + z
+        big = img.resize((int(W * s), int(H * s)), Image.BILINEAR)
+        x0, y0 = int((big.width - W) / 2 + dx), int((big.height - H) / 2 + dy)
+        x0, y0 = max(0, min(big.width - W, x0)), max(0, min(big.height - H, y0))
+        img = big.crop((x0, y0, x0 + W, y0 + H))
+    if flash > 0.01:
+        img = Image.blend(img, Image.new("RGBA", img.size, (255, 255, 255, 255)), clamp(flash))
+    return img
+
+
+def draw_barra(img, t, total):
+    p = clamp(t / max(0.1, total - 1.2))
+    d = ImageDraw.Draw(img)
+    y, h = H - 26, 10
+    d.rounded_rectangle((40, y, W - 40, y + h), radius=5, fill=(255, 255, 255, 60))
+    if p > 0.005:
+        d.rounded_rectangle((40, y, 40 + (W - 80) * p, y + h), radius=5, fill=(255, 111, 176, 235))
+
+
 def componer(tl, salida, cuadros=None, solo_img=None):
     frames_dir = os.path.join(BUILD, "frames")
     words = tl["words"]
     chs = chunks(words)
     pills = pildoras_de(tl)
     grad = degradado()
+    sellos, golpes = sellos_de(tl), golpes_de(tl)
 
     def frame(i):
         t = i / FPS
         p = os.path.join(frames_dir, f"{i:05d}.jpg")
         img = Image.open(p).convert("RGBA")
+        if golpes:
+            img = aplicar_golpes(img, golpes, t)
         img.alpha_composite(grad)
         draw_pill(img, pills, t)
+        draw_sellos(img, sellos, t)
+        if getattr(TEMA, "BARRA", False):
+            draw_barra(img, t, tl["total"])
         for k, ch in enumerate(chs):
             fin = chs[k + 1][0]["start"] if k + 1 < len(chs) else ch[-1]["end"] + 0.6
             if ch[-1]["frase"] != (chs[k + 1][0]["frase"] if k + 1 < len(chs) else None):

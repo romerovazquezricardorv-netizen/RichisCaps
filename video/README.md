@@ -56,3 +56,16 @@ El programa corta la voz en sus pausas, transcribe cada trozo con Whisper y alin
 ## Temas
 
 Cada video es un tema: `python3 generar.py --tema perfume ...` usa `temas/perfume.py` (guion, etiquetas y efectos) y la escena `escena3d/perfume.js`. Los archivos intermedios quedan en `build/<tema>/`. Para hacer un tema nuevo se copia un archivo de `temas/`, se cambia el guion y se arma su escena 3D.
+
+### Opciones para un video más dinámico
+
+Un tema puede activar, sin afectar a los demás:
+
+- `SELLOS`: textos tipo sello que golpean la pantalla en un momento del guion (`(escena, cue, texto, color, segundos)`); `SELLO_Y` fija su altura.
+- `GOLPES`: sacudida y acercamiento rápido de la imagen, con destello blanco opcional (`(escena, cue, fuerza, destello)`).
+- `BARRA = True`: barra de progreso abajo.
+- `MUSICA = "energica"`: la misma música con bombo en cada tiempo (112 bpm).
+- Efectos de sonido nuevos en `efectos()`: `golpe`, `frote` y `whoosh`.
+
+`temas/perfume_frotar.py` (con `escena3d/frotar.js`) es el primero que los usa: `perfume-frotar.mp4`, con voz provisional; el guion para CapCut está en `guion-perfume-frotar-para-grabar.md`.
+
