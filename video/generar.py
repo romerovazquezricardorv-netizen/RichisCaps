@@ -407,7 +407,7 @@ def etapa_audio(args):
 # ---------------------------------------------------------------- voz externa (p. ej. CapCut)
 NUM_ASR = {"1": "un", "2": "dos", "4": "cuatro", "5": "cinco", "6": "seis", "8": "ocho", "9": "nueve", "10": "diez",
            "15": "quince", "18": "dieciocho", "20": "veinte", "32": "treinta y dos", "64": "sesenta y cuatro",
-           "512": "quinientos doce"}
+           "512": "quinientos doce", "127": "ciento veintisiete", "2021": "dos mil veintiuno"}
 
 
 def normaliza(texto):
