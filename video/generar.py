@@ -731,7 +731,8 @@ def sellos_de(tl):
     out = []
     for esc, cue, txt, col, dur in getattr(TEMA, "SELLOS", []):
         if esc in segs and cue in segs[esc]["cues"]:
-            out.append((segs[esc]["cues"][cue], dur, txt, tuple(col)))
+            a = segs[esc]["cues"][cue]
+            out.append((a, max(0.5, min(dur, segs[esc]["end"] - a)), txt, tuple(col)))   # no pasa a la escena siguiente
     return out
 
 
