@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Oficina del canal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Oficina virtual del canal de YouTube: tendencias, guion, voz, animación, miniaturas, Studio y retención.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../icon-192.png" type="image/png">
+<link rel="stylesheet" href="oficina.css">
+<script>try { var t = (JSON.parse(localStorage.getItem('oficina_v1')) || {}).cfg || {}; t = t.theme || 'auto';
+  document.documentElement.dataset.theme = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+} catch (e) {}</script>
+</head>
+<body>
+<header>
+  <a class="logo" href="#oficina" aria-label="Oficina"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></a>
+  <div class="tt"><h1 id="canal">Mi canal</h1><p class="nicho" id="nichoTop">Nicho: buscando…</p></div>
+  <button class="ib" id="bell" aria-label="Bandeja de avisos" onclick="location.hash='bandeja'"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 003.4 0"/></svg><span class="dot" id="dot" hidden>0</span></button>
+  <button class="ib" aria-label="Ajustes" onclick="location.hash='ajustes'"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+</header>
+<main id="view"></main>
+<div class="toast" id="toast" role="status"></div>
+<script src="oficina.js"></script>
+</body>
+</html>

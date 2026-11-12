@@ -19,6 +19,27 @@ Estilo **liquid glass** en claro y oscuro (*Ajustes > Apariencia*: automático, 
 
 Mantén presionado el ícono en el celular para entrar directo a *Vender*, *Panel* o *Inventario*.
 
+## Oficina del canal de YouTube (`oficina/`)
+
+Una oficina virtual con un equipo de 7 que produce los videos del canal. Se abre en `https://TU-USUARIO.github.io/TU-REPO/oficina/`.
+
+| # | Integrante | Qué hace |
+|---|---|---|
+| 1 | **Lupe · Tendencias** | Revisa los videos de los últimos 7 días de 8 nichos, mide qué tan rápido suben (vistas por hora) y se queda con el nicho que más está en tendencia. Si un video hace **10 veces la media** de su canal, suena una alarma (sonido, vibración y notificación). Revisa sola cada 30 min mientras la oficina está abierta. |
+| 2 | **Gael · Guion** | Escribe el guion con el **gancho en el primer segundo** (máximo 4 palabras, se valida), remate, promesa, puntos, "giros" para romper el ritmo y llamada a suscribirse. Lleva el historial de cada tipo de gancho y cuántas veces la gente se fue en el segundo 3. |
+| 3 | **Vale · Voz y audio** | Lee el guion con voz sintética para escuchar el ritmo, graba tu voz con teleprompter y crea música original (sin derechos de autor) con un *whoosh* en cada corte. |
+| 4 | **Andrés · Animación** | Anima cada línea como una escena con fondo, movimiento, paleta y transición. Guarda cada combinación usada y **nunca repite una**, ni dentro del video ni entre videos. Exporta el video con voz y música. |
+| 5 | **Mia · Miniaturas** | Crea **10 versiones**, analiza cada una (contraste, palabras, punto focal, color, curiosidad) y elige la de más CTR estimado. Si escribes impresiones y clics reales (de *Probar y comparar* de YouTube Studio), gana la de **más clics de verdad**. |
+| 6 | **Sofi · Studio** | Prepara título, descripción con capítulos, etiquetas, y programa la publicación **1 hora antes del pico de tu audiencia** (mapa por día y hora). Con OAuth sube el video, lo programa y pone la miniatura ganadora. |
+| 7 | **Rafa · Retención** | Lee la curva de retención (YouTube Analytics, pegada desde Studio o simulada). Si en el **segundo 3** queda menos del 70 %, **le manda un aviso a Gael** para reanalizar; con un toque se reescribe el gancho con otra fórmula. |
+
+Sin conexión trabaja en **modo demo** (tendencias y retención simuladas). Para datos reales, en *Ajustes* de la oficina:
+
+- **API key de YouTube Data v3**: Tendencias con datos reales.
+- **ID de cliente OAuth** (tipo "Aplicación web", con tu dirección de GitHub Pages como origen autorizado): conectar el canal, subir y programar videos, leer la retención.
+
+Las dos se sacan gratis en console.cloud.google.com (activa *YouTube Data API v3* y *YouTube Analytics API*) y se guardan solo en ese navegador. El canal en sí se crea con tu cuenta de Google en youtube.com/create_channel.
+
 ## Publicar en GitHub Pages
 
 1. Sube a un repositorio: `index.html`, `style.css`, `app.js`, `sw.js`, `manifest.json` y los 4 íconos `icon-*.png`.

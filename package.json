@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/smoke.mjs",
+    "test": "node tests/smoke.mjs && node tests/oficina.mjs",
     "capturas": "node tests/capturas.mjs"
   },
   "devDependencies": {
