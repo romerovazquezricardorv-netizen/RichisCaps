@@ -6,36 +6,39 @@ Video de respuesta a un comentario del video del refri, con el mismo frasco con 
 
 ## Texto corrido (para pegar en CapCut)
 
-¿A poco el perfume se echa a perder? Sí. Pero no como la leche.
+Tu perfume sí se echa a perder... solo que, a diferencia de la leche, él no te avisa.
 
-No tiene una fecha de caducidad exacta: bien guardado, dura en promedio de tres a cinco años, y algunos, muchísimo más.
+Bien guardado, aguanta de tres a cinco años. Algunos duran más que muchas relaciones.
 
-Lo que lo echa a perder son tres cosas: la luz, el calor, y el aire que entra conforme se va vaciando el frasco.
+Y tiene tres enemigos: la luz, el calor, y el aire, que se mete conforme se va vaciando el frasco.
 
-¿Cómo saber si ya se echó a perder? Se pone más oscuro, huele agrio, como a vinagre o a metal, o ya no huele a lo que olía antes.
+¿Cómo saber si ya se echó a perder? Se pone más oscuro, huele agrio, o lo rocías y piensas: este no es el perfume que compré.
 
-Los cítricos y los frescos se echan a perder más rápido, y los amaderados aguantan más.
+Los cítricos son los primeros en rendirse. Los amaderados... esos aguantan todo.
 
-Así que si tienes uno guardado hace años... huélelo antes de usarlo. ¿Tú tienes alguno así?
+Así que antes de echarte ese perfume que tienes guardado desde hace años, huélelo. Tu cita te lo va a agradecer. ¿Cuál es el más viejo que tienes?
 
 ## Qué se ve en cada parte
 
 | # | Texto | En pantalla |
 |---|-------|-------------|
-| 1 | ¿A poco se echa a perder? Sí. | El frasco con carita en el refri se asusta; cae el sello **¡SÍ!** |
-| 2 | Pero no como la leche | El frasco voltea a la leche, que suelta una nube verde |
-| 3 | Dura de tres a cinco años… y algunos más | El frasco en su pedestal, un reloj que corre cada vez más rápido, el sello **3 A 5 AÑOS** y corazones |
-| 4 | La luz, el calor y el aire | Aparecen los villanos (luz amarilla, calor rojo y aire azul) y el frasco se va vaciando mientras entra aire |
-| 5 | Más oscuro, agrio, vinagre o metal | El líquido se pone café, nube verde, botella de vinagre y sello **¡AGRIO!** |
-| 6 | Ya no huele a lo que olía | Tu personaje lo huele y pone cara de «¿?» |
-| 7 | Cítricos vs. amaderados | Dos frascos: el limón se va volando y el cítrico se oscurece; el de madera de sándalo aguanta, con corazones y palomita |
-| 8 | Huélelo antes de usarlo… ¿Tú tienes alguno así? | Abres un cajón con un frasco viejito, lo hueles y aparece un «?» |
+| 1 | Tu perfume sí se echa a perder… | El refri se abre de golpe con escarcha y el frasco con carita se asusta |
+| 2 | …a diferencia de la leche, él no te avisa | La leche presume su etiqueta «CADUCA 15 NOV»; al frasco le sale «CADUCA ¿¿??» y cae el sello **NO TE AVISA** |
+| 3 | Aguanta de tres a cinco años | El reloj corre cada vez más rápido; sello **3 A 5 AÑOS** |
+| 4 | Más que muchas relaciones | Una pareja con corazones a los lados del frasco; el corazón se parte, se dan la espalda y el frasco sigue brillando |
+| 5 | La luz, el calor y el aire | Llegan los villanos uno por uno (la cámara voltea a cada uno) y el frasco se va vaciando mientras entra aire |
+| 6 | Más oscuro, huele agrio | El líquido se pone café, nube verde y sello **AGRIO** |
+| 7 | Lo rocías y piensas: este no es el que compré | Tu personaje lo rocía, lo huele y pone cara de «¿?» |
+| 8 | Los cítricos se rinden; los amaderados aguantan todo | El limón saca bandera blanca y el cítrico se oscurece; la madera de sándalo levanta pesas; sello **AGUANTA TODO** |
+| 9 | Huélelo… tu cita te lo va a agradecer | Abres un cajón con un frasco viejito y lo hueles; llega tu cita y salen corazones; «?» final |
+
+**Más dinámico:** cortes de cámara dentro de cada escena, barrido rápido con desenfoque en cada cambio de escena, sacudidas en los momentos clave y un brillo suave (bloom) en luces y frascos.
 
 ## Datos (revisados)
 
 - El perfume no trae una fecha de caducidad exacta; bien guardado suele durar de 3 a 5 años, y algunos mucho más.
 - Lo degradan la luz, el calor y el oxígeno (entra más aire conforme se vacía el frasco).
-- Señales: color más oscuro, olor agrio, a vinagre o metálico, y que ya no huela como antes.
+- Señales: color más oscuro, olor agrio, y que ya no huela como antes.
 - Los cítricos y frescos se echan a perder antes; los amaderados y ámbar aguantan más.
 
 Cuando tengas la voz, exporta en **480p y 24 fps** y mándamela.

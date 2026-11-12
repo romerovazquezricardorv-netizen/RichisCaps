@@ -6,6 +6,10 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const W = 1080, H = 1920;
 const Q = new URLSearchParams(location.search);
@@ -84,7 +88,7 @@ scene.add(dust);
 scene.add(new THREE.HemisphereLight(0xb79cff, 0x120b24, 0.7));
 const key = new THREE.DirectionalLight(0xfff0e0, 2.4);
 key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
+key.shadow.mapSize.set(2048, 2048);
 Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
 key.shadow.bias = -0.0005;
 scene.add(key, key.target);
@@ -924,6 +928,7 @@ resetWorld = function () {
   [bathBottle, roomBottle].forEach(b => { b.scale.setScalar(1); b.rotation.set(0, 0, 0); b.userData.liquid.scale.y = 1; });
   villains.forEach(v => v.scale.setScalar(0.5));
   vinegar.scale.setScalar(1); milk.scale.setScalar(1);
+  if (dumbbell.parent !== scene) scene.add(dumbbell);
 };
 function onPedestal(T, s = 0.8) {
   lightAt(DUO2); pedestal.visible = true; pedestal.position.copy(DUO2);
@@ -931,104 +936,171 @@ function onPedestal(T, s = 0.8) {
 }
 const shotPed = (p, dist = 9.4, ty = 1.4) => { const a = lerp(-0.25, 0.2, p); return { pos: V(DUO2.x + Math.sin(a) * dist, 2.4, DUO2.z + Math.cos(a) * dist), tgt: DUO2.clone().add(V(0, ty, 0)), fov: 40 }; };
 
+// ------------------------------------------------------------------ etiquetas: la leche trae fecha; el perfume, no
+function tagTex(lines, bg, fg) { const c = document.createElement('canvas'); c.width = 256; c.height = 160; const x = c.getContext('2d');
+  x.fillStyle = bg; x.beginPath(); x.roundRect(4, 4, 248, 152, 22); x.fill(); x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = '800 44px Inter, Arial, sans-serif'; x.fillText(lines[0], 128, 54); x.font = '900 54px Inter, Arial, sans-serif'; x.fillText(lines[1], 128, 112);
+  return new THREE.CanvasTexture(c); }
+const milkTag = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.39), new THREE.MeshBasicMaterial({ map: tagTex(['CADUCA', '15 NOV'], '#ffffff', '#e0262e'), transparent: true }));
+const perfTag = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.39), new THREE.MeshBasicMaterial({ map: tagTex(['CADUCA', '¿¿??'], '#fff6e0', '#7a5a10'), transparent: true }));
+scene.add(milkTag, perfTag);
+// bandera blanca (el limón se rinde)
+const flag = new THREE.Group();
+{ const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.1, 8), new THREE.MeshStandardMaterial({ color: 0x8a5a34 })); stick.position.y = 0.55; flag.add(stick);
+  const geo = new THREE.PlaneGeometry(0.55, 0.36, 12, 1); geo.translate(0.29, 0, 0);
+  const cloth = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, roughness: 0.8 })); cloth.position.y = 0.9; flag.add(cloth); flag.userData.cloth = cloth;
+  flag.userData.base = Float32Array.from(geo.attributes.position.array); }
+scene.add(flag);
+function waveFlag(T) { const g = flag.userData.cloth.geometry, P = g.attributes.position, b = flag.userData.base;
+  for (let i = 0; i < P.count; i++) { const x = b[i * 3]; P.setZ(i, 0.08 * Math.sin(x * 9 - T * 9) * x / 0.58); } P.needsUpdate = true; g.computeVertexNormals(); }
+// corazón de la pareja (se rompe)
+const coupleHeart = new THREE.Group();
+{ const mk = s => { const h = new THREE.Mesh(heartGeo, heartMat); h.scale.setScalar(1.3); return h; }; coupleHeart.add(mk(), mk()); }
+scene.add(coupleHeart);
+SETS.push(milkTag, perfTag, flag, coupleHeart, dumbbell);
+
 const SCENES = {
   gancho(t, d, cue, T) {
-    const tp = cue.perder ?? d * 0.35, ts = cue.si ?? d * 0.5, tl = cue.leche ?? d * 0.85;
-    fridgeScene(easeOut(prog(t, 0, 0.6)), T);
-    const scared = t > tp, milkTime = t > tl - 0.2;
-    setFace({ mood: t > ts ? 'frown' : scared ? 'o' : 'smile', eye: scared ? 1.3 : 1, look: milkTime ? [-0.9, 0.8] : [0, 0], blink: blinkAt(T, 0.3), brow: t > ts ? 0.9 : scared ? 0.5 : 0 });
-    perfu.rotation.z = t > ts && t < ts + 0.6 ? 0.06 * Math.sin(T * 30) : 0;
-    if (milkTime) { setStink(t, milk.position.clone().add(V(0, 0.9, 0.2)), tl, 0.3); milk.rotation.z = 0.05 * Math.sin(T * 12); }
+    const tp = cue.perder ?? d * 0.3, tl = cue.leche ?? d * 0.65, ta = cue.avisa ?? d * 0.85;
+    fridgeScene(easeOut(prog(t, 0, 0.45)), T);
+    // arranca con la puerta abriéndose de golpe y escarcha
+    snowPts.visible = t < 1.2;
+    if (snowPts.visible) { const P = snowGeo.attributes.position; for (let i = 0; i < SNOWN; i++) { const [x, y, z, ph] = snowSeed[i]; const k = t / 1.2;
+      P.setXYZ(i, fridge.position.x + x * 0.3 * (1 + k), fridge.position.y + 0.4 + y * 0.6, fridge.position.z + 0.8 + z * 0.2 + k * 3); } P.needsUpdate = true; }
+    const milkT = t > tl - 0.3;
+    setFace({ mood: t > ta ? 'smile' : t > tp ? 'o' : 'smile', eye: t > tp && t < ta ? 1.3 : 1, look: t > ta ? [0.9, 0.6] : milkT ? [-0.9, 0.8] : [0, 0], blink: blinkAt(T, 0.3), brow: t > ta ? -0.4 : 0 });
+    // la leche presume su fecha; el perfume... silba
+    milkTag.visible = milkT; milkTag.position.copy(milk.position).add(V(0, 0.55, 0.3)); milkTag.scale.setScalar(Math.max(0.001, spring(prog(t, tl - 0.3, tl + 0.2))));
+    perfTag.visible = t > ta - 0.1; perfTag.position.copy(perfu.position).add(V(0.0, 1.35, 0.35)); perfTag.scale.setScalar(Math.max(0.001, spring(prog(t, ta - 0.1, ta + 0.35)) * 0.9)); perfTag.rotation.z = 0.12 * Math.sin(T * 4);
     sparks.visible = true; setSparks(T, fridge.position.clone().add(V(0, 2.3, 0.4)), 1.2, 3.2, 0xdff2ff, 0.6);
-    if (t > tl - 0.35) return { pos: KIT.clone().add(V(-0.1, 3.6, 6.4 - 0.5 * easeIO(prog(t, tl - 0.35, d)))), tgt: KIT.clone().add(V(-0.3, 2.95, -0.8)), fov: 40 };
-    if (t > ts - 0.15) return { ...shotClose(easeIO(prog(t, ts, d))), pal: 'gancho' };
-    return shotFridge(easeIO(prog(t, 0, ts)), 8.6, 0.6);
+    if (t < tp - 0.1) return { pos: lerpV(KIT.clone().add(V(0.4, 2.8, 9.5)), KIT.clone().add(V(0.3, 2.7, 6.0)), easeOut(prog(t, 0, tp))), tgt: KIT.clone().add(V(0.3, 2.3, -0.8)), fov: 40 };
+    if (milkT) return { pos: KIT.clone().add(V(-0.1, 3.5, 5.2 - 0.4 * easeIO(prog(t, tl, d)))), tgt: KIT.clone().add(V(-0.25, 2.85, -0.8)), fov: 40 };
+    return shotClose(easeIO(prog(t, tp, tl)));
   },
   caduca(t, d, cue, T) {
-    const te = cue.exacta ?? d * 0.2, ta = cue.anos ?? d * 0.65, tm = cue.mas ?? d * 0.9;
+    const ta = cue.anos ?? d * 0.45, tn = cue.novio ?? d * 0.8;
     onPedestal(T);
-    setFace({ mood: t > tm ? 'smile' : t > ta ? 'o' : 'smile', eye: t > tm ? 1.2 : 1.05, look: [-0.7, 0.6], blink: blinkAt(T, 0.2), brow: 0 });
-    // el reloj corre: pasan los años
-    clock.visible = t > te - 0.2; clock.position.copy(DUO2).add(V(-1.25, 2.7, 0.4)); clock.scale.setScalar(Math.max(0.001, spring(prog(t, te - 0.2, te + 0.3)) * 0.55));
-    clock.userData.hand.rotation.z = -T * (t > ta ? 14 : 4);
-    sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.4, 0)), 1.8, 2.4, 0xffd27a, t > ta ? 1 : 0.5);
-    if (t > tm) setHearts(t, DUO2.clone().add(V(0.3, 2.2, 0.3)), tm, 5, 1.0);
-    setFloorRings(T, DUO2, 0xffd27a);
-    glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xffd27a); glow.intensity = 7;
-    return shotPed(easeIO(t / d), 8.6);
+    if (t < tn - 0.15) {
+      setFace({ mood: 'smile', eye: 1.1, look: [-0.7, 0.6], blink: blinkAt(T, 0.2) });
+      clock.visible = true; clock.position.copy(DUO2).add(V(-1.25, 2.7, 0.4)); clock.scale.setScalar(Math.max(0.001, spring(prog(t, 0, 0.4)) * 0.55));
+      clock.userData.hand.rotation.z = -T * (t > ta ? 16 : 5);
+      sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.4, 0)), 1.8, 2.4, 0xffd27a, t > ta ? 1 : 0.5);
+      setFloorRings(T, DUO2, 0xffd27a);
+      glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xffd27a); glow.intensity = 7;
+      return shotPed(easeIO(prog(t, 0, tn)), lerp(9.0, 7.6, easeIO(prog(t, 0, tn))));
+    }
+    // ...más que muchas relaciones: el corazón de la pareja revienta; el perfume, ahí sigue
+    perfu.position.add(V(0, 0, -1.2)); perfu.scale.setScalar(0.6);
+    setFace({ mood: 'smile', eye: 1.15, look: [0, 0.4], blink: blinkAt(T, 0.6), brow: -0.3 });
+    const brk = prog(t, tn + 0.3, tn + 0.9);
+    [you, pal].forEach((b, i) => { b.visible = true; b.scale.setScalar(0.7); b.position.copy(DUO2).add(V(i ? 1.15 : -1.15, 0, 0.6));
+      setBuddy(b, { hop: brk > 0 ? 0 : hopF(T, 3, 0.05), mood: brk > 0 ? 'frown' : 'smile', eye: brk > 0 ? 0.8 : 1.15, look: [brk > 0 ? (i ? 1 : -1) : (i ? -0.8 : 0.8), 0], blink: blinkAt(T, i * 0.3), rotY: brk > 0 ? (i ? 1.0 : -1.0) : (i ? -0.6 : 0.6), armR: 0.2 }); });
+    coupleHeart.visible = true; coupleHeart.position.copy(DUO2).add(V(0, 2.6, 1.0));
+    const pop = spring(prog(t, tn - 0.15, tn + 0.25));
+    coupleHeart.children.forEach((h, i) => { const s2 = i ? 1 : -1; h.visible = true; h.scale.setScalar(Math.max(0.001, pop * 0.9 * (1 - clamp((brk - 0.6) / 0.4))));
+      h.position.set(s2 * 0.6 * easeOut(brk), -1.5 * brk * brk, 0); h.rotation.set(0, 0, s2 * 0.6 * brk); });
+    sparks.visible = true; setSparks(T, perfu.position.clone().add(V(0, 1.0, 0)), 0.9, 1.4, 0xffd27a, 1);
+    glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xff8fd0); glow.intensity = 6;
+    return { pos: DUO2.clone().add(V(0.2, 2.8, lerp(11.0, 10.2, easeIO(prog(t, tn, d))))), tgt: DUO2.clone().add(V(0, 1.6, 0)), fov: 40, pal: 'final' };
   },
   enemigos(t, d, cue, T) {
-    const cs = [cue.luz ?? d * 0.35, cue.calor ?? d * 0.45, cue.aire ?? d * 0.6], tv = cue.vacia ?? d * 0.85;
+    const cs = [cue.luz ?? d * 0.3, cue.calor ?? d * 0.4, cue.aire ?? d * 0.55], tv = cue.vacia ?? d * 0.85;
     onPedestal(T, 0.75);
-    // luz (amarillo), calor (rojo) y aire (azul) rodean al frasco
     const order = [2, 0, 1], spots = [V(-1.4, 0, 1.0), V(1.4, 0, 1.0), V(1.0, 2.2 + 0.15 * Math.sin(T * 3), 0.6)];
     order.forEach((vi, k) => { const v = villains[vi]; const p = spring(prog(t, cs[k] - 0.1, cs[k] + 0.4));
       v.visible = p > 0.01; v.position.copy(DUO2).add(spots[k]); v.scale.setScalar(0.42 * Math.max(0.001, p));
       setBuddy(v, { hop: hopF(T, 4 + k, 0.15), mood: 'frown', eye: 1, look: [k === 0 ? 0.6 : k === 1 ? -0.6 : 0, 0.5], blink: blinkAt(T, k * 0.3), brow: -1, armR: 1.6 + 0.4 * Math.sin(T * 8 + k), armL: 0.3, rotY: k === 0 ? 0.5 : k === 1 ? -0.5 : 0 });
       if (v.userData.acc) v.userData.acc.rotation.y = T * (vi === 2 ? 1.5 : 4); });
-    // el frasco se va vaciando y entra aire
     const empty = easeIO(prog(t, cs[2], tv + 0.6));
     perfu.userData.liquid.scale.y = lerp(1, 0.3, empty);
     if (t > cs[2]) setWaves(T * 1.3, perfu.position.clone().add(V(0, 2.3 * 0.75, 0)), 1.4, 1.6, 0xcfeaff, 0.7);
     setFace({ mood: t > cs[0] ? 'o' : 'smile', eye: t > cs[0] ? 1.25 : 1, look: [Math.sin(T * 2) * 0.8, 0], blink: 1, brow: t > cs[0] ? 0.7 : 0 });
     glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xff8a3a); glow.intensity = 6;
-    return shotPed(easeIO(t / d), 11.4, 1.5);
+    // la cámara voltea hacia cada enemigo que llega
+    const look = t < cs[1] - 0.1 ? -0.7 : t < cs[2] - 0.1 ? 0.7 : 0;
+    const tgx = lerp(0, look, easeOut(prog(t, cs[0] - 0.1, cs[0] + 0.3)));
+    return { pos: DUO2.clone().add(V(tgx * 0.6, 2.5, lerp(11.6, 10.4, easeIO(t / d)))), tgt: DUO2.clone().add(V(tgx, 1.5, 0)), fov: 40 };
   },
   senales(t, d, cue, T) {
-    const tc = cue.color ?? d * 0.35, ta = cue.agrio ?? d * 0.5, to = cue.olia ?? d * 0.9;
-    onPedestal(T);
-    liquidColor(perfu, easeIO(prog(t, tc - 0.3, tc + 0.5)));
-    const sour = t > ta;
-    setFace({ mood: t > tc ? 'frown' : 'o', eye: t > tc ? 0.9 : 1.1, look: [0, -0.4], blink: t > tc ? 0.5 : 1, brow: t > tc ? -0.6 : 0.4 });
-    if (sour && t < to - 0.2) {
-      setStink(t, perfu.position.clone().add(V(0.4, 1.9, 0.3)), ta, 0.45);
-      vinegar.visible = true; vinegar.position.copy(DUO2).add(V(-1.5, 0.18 + 0.08 * Math.sin(T * 3), 0.4)); vinegar.scale.setScalar(Math.max(0.001, spring(prog(t, ta + 0.1, ta + 0.6)) * 0.6)); vinegar.rotation.set(0, T, 0.15 * Math.sin(T * 5));
+    const tc = cue.color ?? d * 0.35, ta = cue.agrio ?? d * 0.5, tr = cue.rocia ?? d * 0.65, to = cue.olia ?? d * 0.9;
+    if (t < tr - 0.15) {
+      onPedestal(T);
+      liquidColor(perfu, easeIO(prog(t, tc - 0.3, tc + 0.5)));
+      const sour = t > ta;
+      setFace({ mood: t > tc ? 'frown' : 'o', eye: t > tc ? 0.9 : 1.1, look: [0, -0.4], blink: t > tc ? 0.5 : 1, brow: t > tc ? -0.6 : 0.4 });
+      if (sour) setStink(t, perfu.position.clone().add(V(0.3, 1.9, 0.3)), ta, 0.45);
+      glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(sour ? 0x9ad04a : 0xffd27a); glow.intensity = 6;
+      return shotPed(easeIO(prog(t, 0, tr)), lerp(9.6, 8.0, easeIO(prog(t, 0, tr))));
     }
-    if (t > to - 0.2) {   // "ya no huele a lo que olía antes"
-      you.visible = true; you.position.copy(DUO2).add(V(1.25, 0, 0.9)); you.scale.setScalar(0.65); you.userData.nose.visible = true;
-      setBuddy(you, { hop: hopF(T, 3, 0.04), mood: 'frown', eye: 1.2, look: [-0.8, 0], blink: 1, brow: 0.8, rotY: -0.6, armR: 0.5 });
-      qMark.visible = true; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, to, to + 0.5)) * 0.6)); qMark.position.copy(you.position).add(V(0.3, 2.1, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
-    }
-    glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(sour ? 0x9ad04a : 0xffd27a); glow.intensity = 6;
-    return shotPed(easeIO(t / d), 10.2);
+    // lo rocías... y no es el perfume que compraste
+    onPedestal(T); liquidColor(perfu, 1);
+    you.visible = true; you.position.copy(DUO2).add(V(1.35, 0, 0.8)); you.scale.setScalar(0.65);
+    youBottle.visible = true; youBottle.userData.liquid.material.color.copy(BADK); youBottle.userData.liquid.material.emissive.copy(BADK);
+    const confused = t > to - 0.1;
+    you.userData.nose.visible = true;
+    setBuddy(you, { hop: hopF(T, 3, 0.04), mood: confused ? 'frown' : 'o', mouthOpen: 0.8, eye: confused ? 1.35 : 1.1, look: confused ? [0.6, -0.5] : [-0.6, 0.2], blink: 1, brow: confused ? 0.9 : 0, rotY: -0.7, armR: confused ? 1.7 : 1.3 });
+    you.updateMatrixWorld(); const noz = youBottle.localToWorld(V(0, 2.4, 0));
+    setMist(t, noz, V(-0.7, 0.4, 0.2).normalize(), tr, [0.85, 0.75, 0.5]);
+    qMark.visible = confused; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, to, to + 0.5)) * 0.6)); qMark.position.copy(you.position).add(V(0.4, 2.2, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
+    setFace({ mood: 'o', eye: 1.2, look: [0.8, 0], blink: 1, brow: 0.6 });
+    glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xffd27a); glow.intensity = 6;
+    return { pos: DUO2.clone().add(V(0.9, 2.6, lerp(9.6, 8.8, easeIO(prog(t, tr, d))))), tgt: DUO2.clone().add(V(0.6, 1.4, 0.3)), fov: 40 };
   },
   cuales(t, d, cue, T) {
-    const tr = cue.rapido ?? d * 0.45, tm = cue.madera ?? d * 0.65, ta = cue.aguantan ?? d * 0.9;
+    const tr = cue.rapido ?? d * 0.3, tm = cue.madera ?? d * 0.5, ta = cue.aguantan ?? d * 0.85;
     lightAt(DUO2); pedestal.visible = true; pedestal.position.copy(DUO2);
     const L = bathBottle, R = roomBottle;
     [L, R].forEach((b, i) => { b.visible = true; b.scale.setScalar(0.62); b.position.copy(DUO2).add(V(i ? 0.85 : -0.85, 0.18, 0)); b.rotation.y = (i ? -0.25 : 0.25) + 0.1 * Math.sin(T + i); });
     liquidColor(L, easeIO(prog(t, tr - 0.2, tr + 0.7)), new THREE.Color(0xfff04a));
     liquidColor(R, 0, new THREE.Color(0xc8702a));
-    // cítrico arriba del de la izquierda: se va volando; madera arriba del de la derecha: se queda
+    // el limón saca la bandera blanca
     const lemon = ingMeshes.salida[0], wood = ingMeshes.fondo[1];
-    lemon.visible = true; const go = Math.max(0, t - tr);
-    lemon.position.copy(L.position).add(V(0, 2.3 + 0.1 * Math.sin(T * 2) + 4 * go * go, 0.2)); lemon.scale.setScalar(Math.max(0.001, 0.75 * spring(prog(t, 0, 0.5)) * (1 - clamp(go / 0.9)))); lemon.rotation.set(0, T, go * 4);
-    wood.visible = t > tm - 0.1; wood.position.copy(R.position).add(V(0, 2.3 + 0.1 * Math.sin(T * 2 + 1), 0.2)); wood.scale.setScalar(Math.max(0.001, 0.75 * spring(prog(t, tm - 0.1, tm + 0.4)))); wood.rotation.set(0, T * 0.8, 0.2);
-    if (t > ta) { setHearts(t, R.position.clone().add(V(0, 2.8, 0.3)), ta, 4, 0.6);
-      check.visible = true; check.scale.setScalar(Math.max(0.001, spring(prog(t, ta, ta + 0.5)) * 0.55)); check.position.copy(R.position).add(V(0.45, 3.4, 0.3)); check.rotation.y = 0.3 * Math.sin(T * 2); }
+    lemon.visible = true; const sag = easeOut(prog(t, tr, tr + 0.6));
+    lemon.position.copy(L.position).add(V(0, 2.25 - 0.25 * sag + 0.08 * Math.sin(T * 2), 0.2)); lemon.scale.setScalar(Math.max(0.001, 0.75 * spring(prog(t, 0, 0.5)))); lemon.rotation.set(0, 0.3, -0.3 * sag);
+    flag.visible = t > tr - 0.1; flag.position.copy(lemon.position).add(V(0.35, 0.05, 0.1)); flag.scale.setScalar(Math.max(0.001, spring(prog(t, tr - 0.1, tr + 0.3)) * 0.85)); flag.rotation.z = -0.25 + 0.15 * Math.sin(T * 5); waveFlag(T);
+    // la madera levanta pesas
+    wood.visible = t > tm - 0.1; wood.position.copy(R.position).add(V(0, 2.3 + 0.05 * Math.sin(T * 2 + 1), 0.2)); wood.scale.setScalar(Math.max(0.001, 0.75 * spring(prog(t, tm - 0.1, tm + 0.4)))); wood.rotation.set(0, 0, 0);
+    dumbbell.visible = t > tm + 0.3; dumbbell.position.copy(wood.position).add(V(0, 0.55 + 0.35 * Math.abs(Math.sin(T * 5)), 0)); dumbbell.scale.setScalar(Math.max(0.001, spring(prog(t, tm + 0.3, tm + 0.7)) * 0.9)); dumbbell.rotation.set(0, 0, 0);
+    if (t > ta) setHearts(t, R.position.clone().add(V(0, 3.2, 0.3)), ta, 4, 0.6);
     sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.6, 0)), 2.0, 2.6, 0xfff0a0, 0.6);
     glow.position.copy(DUO2).add(V(0, 2.5, 3)); glow.color.set(0xfff0a0); glow.intensity = 6;
-    return shotPed(easeIO(t / d), 9.6, 1.6);
+    // primero cerca del limón, luego de la madera, luego los dos
+    const side = t < tm - 0.15 ? -0.85 : t < ta - 0.15 ? 0.85 : 0;
+    const close = side !== 0;
+    return { pos: DUO2.clone().add(V(side * 0.9, close ? 2.6 : 2.5, close ? 6.6 : 9.4)), tgt: DUO2.clone().add(V(side, close ? 1.9 : 1.7, 0)), fov: 40 };
   },
   final(t, d, cue, T) {
-    const tg = cue.guardado ?? d * 0.25, th = cue.huele ?? d * 0.4, tq = cue.tienes ?? d * 0.75;
+    const tg = cue.guardado ?? d * 0.3, th = cue.huele ?? d * 0.4, tc = cue.cita ?? d * 0.6, tq = cue.tienes ?? d * 0.8;
     lightAt(ROOM); room.visible = drawer.visible = pbox.visible = true;
-    const open = easeOut(prog(t, 0.2, 0.9));
+    const open = easeOut(prog(t, 0.3, 1.0));
     drawer.position.copy(ROOM).add(V(0, 1.1, -1.2 + 0.9 * open)); pbox.position.copy(drawer.position).add(V(-0.55, -0.37, 0));
     perfu.visible = true; perfu.position.copy(drawer.position).add(V(0.55, -0.37, 0)); perfu.scale.setScalar(0.32); perfu.rotation.y = -0.2;
     liquidColor(perfu, 0.25);
-    // telarañas de "guardado hace años": polvito brillante; luego tú lo hueles
     sparks.visible = true; setSparks(T, perfu.position.clone().add(V(0, 0.4, 0)), 0.6, 0.8, 0xd8d0c0, t < th ? 0.8 : 0.2);
     const sniff = t > th;
     setFace({ mood: sniff ? 'smile' : 'o', eye: sniff ? 1.2 : 1, look: [0.8, 0.3], blink: blinkAt(T, 0.2) });
-    you.visible = true; you.position.copy(ROOM).add(V(1.3, 0.12, 0.7)); you.scale.setScalar(0.65); you.userData.nose.visible = sniff;
-    setBuddy(you, { hop: hopF(T, 3, 0.05), mood: sniff ? 'o' : 'smile', mouthOpen: 0.8, eye: sniff ? 1.3 : 1.1, look: [-0.8, -0.5], blink: sniff ? 0.35 : blinkAt(T, 0.5), rotY: -0.6, armR: sniff ? 1.2 : 0.2 });
-    qMark.visible = t > tq; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tq, tq + 0.5)) * 0.6)); qMark.position.copy(you.position).add(V(0.3, 2.4, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
+    you.visible = true; you.position.copy(ROOM).add(V(1.3, 0.12, 0.7)); you.scale.setScalar(0.65); you.userData.nose.visible = sniff && t < tc;
+    setBuddy(you, { hop: hopF(T, 3, 0.05), mood: sniff ? 'o' : 'smile', mouthOpen: 0.8, eye: sniff ? 1.3 : 1.1, look: t > tc ? [0.8, 0] : [-0.8, -0.5], blink: sniff && t < tc ? 0.35 : blinkAt(T, 0.5), rotY: t > tc ? 0.2 : -0.6, armR: sniff ? 1.2 : 0.2 });
+    if (t > tc - 0.2) { const pin = easeOut(prog(t, tc - 0.2, tc + 0.4));
+      pal.visible = true; pal.scale.setScalar(0.65); pal.position.copy(ROOM).add(V(lerp(4.0, 2.4, pin), 0.12, 0.9));
+      setBuddy(pal, { hop: hopF(T, 3.5, 0.08), mood: 'smile', eye: 1.2, look: [-0.8, 0], blink: blinkAt(T, 0.1), rotY: -0.7 });
+      setHearts(t, ROOM.clone().add(V(1.9, 1.6, 0.9)), tc + 0.2, 5, 0.8); }
+    qMark.visible = t > tq; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tq, tq + 0.5)) * 0.6)); qMark.position.copy(ROOM).add(V(1.85, 2.75, 0.8)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
     spot.position.copy(ROOM).add(V(0.5, 5, 2)); spot.target.position.copy(ROOM).add(V(0, 1, -0.3)); spot.intensity = 35;
-    const p = easeIO(t / d);
-    return { pos: lerpV(ROOM.clone().add(V(0.6, 4.6, 6.6)), ROOM.clone().add(V(0.5, 4.3, 5.9)), p), tgt: ROOM.clone().add(V(0.75, 1.0, -0.2)), fov: 40 };
+    if (t < th - 0.1) { const p = easeIO(prog(t, 0, th));
+      return { pos: lerpV(ROOM.clone().add(V(0.6, 4.8, 7.0)), ROOM.clone().add(V(0.5, 3.6, 4.4)), p), tgt: ROOM.clone().add(V(0.5, 1.0, -0.4)), fov: 40 }; }
+    if (t < tc - 0.2) return { pos: ROOM.clone().add(V(0.9, 3.4, 4.6)), tgt: ROOM.clone().add(V(0.8, 1.1, -0.2)), fov: 40 };
+    return { pos: lerpV(ROOM.clone().add(V(1.2, 4.2, 7.4)), ROOM.clone().add(V(1.2, 4.0, 6.8)), easeIO(prog(t, tc, d))), tgt: ROOM.clone().add(V(1.35, 1.1, -0.1)), fov: 40 };
   },
 };
+
+// ------------------------------------------------------------------ render con brillo suave (bloom)
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(1); composer.setSize(W, H);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.32, 0.55, 0.88);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
 
 function segAt(t) {
   const S = timeline.segments;
@@ -1062,7 +1134,8 @@ window.renderAt = t => {
   }
   a.needsUpdate = true;
   renderer.toneMappingExposure = EXPO;
-  renderer.render(scene, camera);
-  return renderer.domElement.toDataURL('image/jpeg', 0.95);
+  bloom.strength = seg.scene === 'gancho' ? 0.18 : 0.32;
+  composer.render();
+  return renderer.domElement.toDataURL('image/jpeg', 0.96);
 };
 window.ready = true;

@@ -26,7 +26,7 @@ import wave
 from functools import lru_cache
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(AQUI, "build")
@@ -773,6 +773,21 @@ def aplicar_golpes(img, golpes, t):
     return img
 
 
+def aplicar_transicion(img, cortes, t):
+    """Barrido rápido (whip pan): desenfoque horizontal y desplazamiento alrededor de cada cambio de escena."""
+    for b in cortes:
+        x = t - b
+        if abs(x) < 0.16:
+            k = 1 - abs(x) / 0.16
+            k = k * k * (3 - 2 * k)
+            ancho = max(8, int(W / (1 + 26 * k)))
+            smear = img.resize((ancho, H), Image.BILINEAR).resize((W, H), Image.BILINEAR)
+            dx = int((-1 if x < 0 else 1) * 160 * k)
+            smear = ImageChops.offset(smear, -dx, 0)
+            return Image.blend(img, smear, clamp(k * 1.1))
+    return img
+
+
 def draw_barra(img, t, total):
     p = clamp(t / max(0.1, total - 1.2))
     d = ImageDraw.Draw(img)
@@ -789,6 +804,7 @@ def componer(tl, salida, cuadros=None, solo_img=None):
     pills = pildoras_de(tl)
     grad = degradado()
     sellos, golpes = sellos_de(tl), golpes_de(tl)
+    cortes = [sg["start"] for sg in tl["segments"][1:]] if getattr(TEMA, "TRANSICIONES", False) else []
 
     def frame(i):
         t = i / FPS
@@ -796,6 +812,8 @@ def componer(tl, salida, cuadros=None, solo_img=None):
         img = Image.open(p).convert("RGBA")
         if golpes:
             img = aplicar_golpes(img, golpes, t)
+        if cortes:
+            img = aplicar_transicion(img, cortes, t)
         img.alpha_composite(grad)
         draw_pill(img, pills, t)
         draw_sellos(img, sellos, t)
