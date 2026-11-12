@@ -46,6 +46,7 @@ GOLPES = [
     ("final", "huele", 0.5, 0.0),
 ]
 TRANSICIONES = True    # barrido rápido con desenfoque en cada cambio de escena
+SOPLIDOS = False       # sin ruidos tipo "fshh" (barridos, rocíos ni palmadas en la música)
 
 BARRA = False
 MUSICA = "energica"

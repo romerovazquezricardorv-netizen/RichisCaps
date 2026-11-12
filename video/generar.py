@@ -317,7 +317,7 @@ def music_energica(total):
             break
         e = min(n, s + len(k))
         out[s:e] += k[:e - s]
-        if i % 2 == 1:
+        if i % 2 == 1 and getattr(TEMA, "SOPLIDOS", True):
             c = whoosh(d=0.09, v=0.05, seed=40 + i % 3)
             e = min(n, s + len(c))
             out[s:e] += c[:e - s]
@@ -534,9 +534,13 @@ def mezcla(tl):
     vo = np.pad(vo, (0, max(0, n - len(vo))))[:n]
     sfx = np.zeros(n, np.float32)
     segs = {s["scene"]: s for s in tl["segments"]}
+    soplidos = getattr(TEMA, "SOPLIDOS", True)   # False: sin ningún ruido tipo "fshh" (barridos, rocíos, palmadas)
     for i, s in enumerate(tl["segments"][1:]):
-        mix_in(sfx, whoosh(seed=i), s["start"] - 0.22)
+        if soplidos:
+            mix_in(sfx, whoosh(seed=i), s["start"] - 0.22)
     for at, tipo, par in TEMA.efectos(segs):
+        if not soplidos and tipo in ("spray", "whoosh", "frote"):
+            continue
         if tipo == "boom":
             mix_in(sfx, boom(), at)
         elif tipo == "tin":        # tintineo agudo (grano que cae, gota...)
@@ -563,7 +567,8 @@ def mezcla(tl):
         elif tipo == "golpe":      # sello que cae: golpe grave + chasquido
             mix_in(sfx, boom(0.45)[:int(0.5 * SR)], at)
             mix_in(sfx, tick(0.35, seed=5) * 1.0, at)
-            mix_in(sfx, whoosh(d=0.25, v=0.12, seed=9), at - 0.2)
+            if soplidos:
+                mix_in(sfx, whoosh(d=0.25, v=0.12, seed=9), at - 0.2)
         elif tipo == "frote":      # fricción: ráfagas cortas de ruido
             for k in range(6):
                 mix_in(sfx, whoosh(d=0.12, v=0.11, seed=20 + k), at + k * 0.11)
