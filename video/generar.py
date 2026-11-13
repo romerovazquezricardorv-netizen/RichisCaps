@@ -709,7 +709,33 @@ def degradado():
 
 
 @lru_cache(maxsize=16)
+def sello_comic(text, color):
+    """Explosión de cómic: estrella de picos con contorno negro, sombra dura y texto negro."""
+    f = F(92, "Inter-Black.otf")
+    l, tp, r, b = f.getbbox(text)
+    tw, th = r - l, b - tp
+    rx, ry = tw / 2 + 120, th / 2 + 110
+    w, h = int(2 * rx + 60), int(2 * ry + 60)
+    cx, cy = w / 2, h / 2
+    pts = []
+    n = 18
+    for i in range(2 * n):
+        a = math.pi * i / n
+        k = 1.0 if i % 2 == 0 else 0.74 + 0.06 * math.sin(i * 1.7)
+        pts.append((cx + math.cos(a) * rx * k, cy + math.sin(a) * ry * k))
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.polygon([(x + 12, y + 14) for x, y in pts], fill=(0, 0, 0, 255))          # sombra dura
+    d.polygon(pts, fill=color + (255,), outline=(0, 0, 0, 255), width=10)
+    d.text((cx + 5, cy + 6), text, font=f, fill=(255, 255, 255, 255), anchor="mm")
+    d.text((cx, cy), text, font=f, fill=(0, 0, 0, 255), anchor="mm", stroke_width=0)
+    return im
+
+
+@lru_cache(maxsize=16)
 def sello_image(text, color):
+    if getattr(TEMA, "SELLO_ESTILO", "") == "comic":
+        return sello_comic(text, color)
     f = F(96, "Inter-Black.otf" if os.path.exists(os.path.join(FONT_DIRS[0], "Inter-Black.otf")) else "Inter-ExtraBold.otf")
     txt = text.replace("✓", "").strip()
     l, tp, r, b = f.getbbox(txt)
@@ -793,6 +819,57 @@ def aplicar_transicion(img, cortes, t):
     return img
 
 
+def divisiones_de(tl):
+    segs = {s["scene"]: s for s in tl["segments"]}
+    out = []
+    for esc, c0, c1, arriba, abajo in getattr(TEMA, "DIVIDIDO", []):
+        if esc not in segs:
+            continue
+        sg = segs[esc]
+        a = sg["cues"].get(c0, sg["start"]) if c0 else sg["start"]
+        b = sg["cues"].get(c1, sg["end"]) - 0.12 if c1 else sg["end"]
+        out.append((a, b, arriba, abajo))
+    return out
+
+
+@lru_cache(maxsize=8)
+def etiqueta_panel(text, fondo):
+    f = F(54, "Inter-Black.otf")
+    l, tp, r, b = f.getbbox(text)
+    w, h = r - l + 56, 92
+    im = Image.new("RGBA", (w + 14, h + 14), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rectangle((10, 12, w + 10, h + 12), fill=(0, 0, 0, 255))
+    d.rectangle((0, 0, w, h), fill=fondo + (255,), outline=(0, 0, 0, 255), width=7)
+    d.text((w / 2, h / 2 + 2), text, font=f, fill=(255, 255, 255, 255), anchor="mm", stroke_width=4, stroke_fill=(0, 0, 0, 255))
+    return im
+
+
+def draw_division(img, divs, t):
+    """Pantalla dividida tipo cómic: línea negra al centro, insignia VS y etiquetas de cada mitad."""
+    for a, b, arriba, abajo in divs:
+        if a - 0.02 <= t < b:
+            p = ease_out(clamp((t - a) / 0.25))
+            q = clamp((b - t) / 0.12)
+            d = ImageDraw.Draw(img)
+            y = H // 2
+            ancho = int(W * p)
+            d.rectangle(((W - ancho) // 2, y - 11, (W + ancho) // 2, y + 11), fill=(0, 0, 0, int(255 * q)))
+            d.rectangle(((W - ancho) // 2, y - 4, (W + ancho) // 2, y + 4), fill=(255, 255, 255, int(255 * q)))
+            r = 64 * spring(clamp((t - a - 0.1) / 0.35))
+            if r > 2:
+                d.ellipse((W / 2 - r - 6, y - r - 6, W / 2 + r + 6, y + r + 6), fill=(0, 0, 0, 255))
+                d.ellipse((W / 2 - r, y - r, W / 2 + r, y + r), fill=(232, 38, 58, 255))
+                d.text((W / 2, y + 2), "VS", font=F(max(8, int(r * 0.95)), "Inter-Black.otf"), fill=WHITE, anchor="mm")
+            for k, (txt, col, yy) in enumerate([(arriba, (60, 120, 230), 560), (abajo, (230, 70, 150), 1090)]):
+                e = clamp((t - a - 0.15 - k * 0.1) / 0.3)
+                if e > 0:
+                    im = etiqueta_panel(txt, col)
+                    x0 = int(-im.width + (60 + im.width) * ease_out(e))
+                    img.alpha_composite(im, (x0, yy))
+            return
+
+
 def draw_barra(img, t, total):
     p = clamp(t / max(0.1, total - 1.2))
     d = ImageDraw.Draw(img)
@@ -809,6 +886,7 @@ def componer(tl, salida, cuadros=None, solo_img=None):
     pills = pildoras_de(tl)
     grad = degradado()
     sellos, golpes = sellos_de(tl), golpes_de(tl)
+    divs = divisiones_de(tl)
     cortes = [sg["start"] for sg in tl["segments"][1:]] if getattr(TEMA, "TRANSICIONES", False) else []
 
     def frame(i):
@@ -821,6 +899,8 @@ def componer(tl, salida, cuadros=None, solo_img=None):
             img = aplicar_transicion(img, cortes, t)
         img.alpha_composite(grad)
         draw_pill(img, pills, t)
+        if divs:
+            draw_division(img, divs, t)
         draw_sellos(img, sellos, t)
         if getattr(TEMA, "BARRA", False):
             draw_barra(img, t, tl["total"])
