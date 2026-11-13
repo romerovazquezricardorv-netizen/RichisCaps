@@ -1004,7 +1004,7 @@ const SCENES = {
     const up = easeOut(prog(t, ts - 0.2, ts + 0.7));
     tower.visible = true; tower.position.copy(GAL); tower.scale.set(1.5, 1.5 * Math.max(0.001, up), 1.5); tower.rotation.y = T * 0.25;
     diamonds.count = t > tdm - 0.1 ? DIAMN : Math.floor(DIAMN * 0.25);
-    diamonds.material.emissiveIntensity = t > tdm ? 0.75 + 0.25 * Math.sin(T * 9) : 0.35;
+    diamonds.material.emissiveIntensity = t > tdm ? 0.22 + 0.08 * Math.sin(T * 9) : 0.1;
     // regla y tu personaje para la escala
     const rk = spring(prog(t, tm - 0.1, tm + 0.4));
     ruler.visible = rk > 0.01; ruler.position.copy(GAL).add(V(-1.45, 0, 0.4)); ruler.scale.set(1, Math.max(0.001, rk), 1);
@@ -1051,11 +1051,16 @@ const SCENES = {
 };
 
 // ------------------------------------------------------------------ render con brillo suave (bloom)
+// menos efectos luminosos: sin bloom, sin anillos en el piso, pocas chispas, luces y líquidos más tranquilos
+const _setSparks = setSparks;
+setSparks = (T, c, r, h, col, a = 1) => _setSparks(T, c, r, h, col, a * 0.3);
+setFloorRings = () => { floorRing.visible = floorRing2.visible = false; };
+[small100, small200, crystal, bigB, goldB, towerBottle].forEach(b => (b.userData.liquid.material.emissiveIntensity = 0.05));
+bokeh.material.opacity = 0.12; dust.material.opacity = 0.3;
 const composer = new EffectComposer(renderer);
 composer.setPixelRatio(1); composer.setSize(W, H);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.35, 0.55, 0.85);
-composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 function segAt(t) {
@@ -1090,6 +1095,7 @@ window.renderAt = t => {
   }
   a.needsUpdate = true;
   renderer.toneMappingExposure = EXPO;
+  glow.intensity *= 0.45;
   composer.render();
   return renderer.domElement.toDataURL('image/jpeg', 0.96);
 };
