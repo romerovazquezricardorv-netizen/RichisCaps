@@ -1123,13 +1123,19 @@ renderer.shadowMap.enabled = false;
 scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) { o.castShadow = false; o.receiveShadow = false; } });
 pedestal.material.color.set(0xffffff); pedestal.material.emissive.set(0x000000);
 ground.material.color.set(0xcdbfa8);
+// el contorno del pedestal visto casi de lado se rompía y titilaba: se cambia por un aro negro sólido en la orilla
+pedestal.material.userData.outlineParameters = { visible: false };
+const pedRingGeo = new THREE.TorusGeometry(1.6, 0.035, 10, 160); pedRingGeo.rotateX(Math.PI / 2);
+const pedRingBot = new THREE.TorusGeometry(1.75, 0.035, 10, 160); pedRingBot.rotateX(Math.PI / 2);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x111111 }); ringMat.userData.outlineParameters = { visible: false };
+[pedestal, pedestal2].forEach(pd => { const a = new THREE.Mesh(pedRingGeo, ringMat); a.position.y = 0.09; pd.add(a); const b = new THREE.Mesh(pedRingBot, ringMat); b.position.y = -0.085; pd.add(b); });
 const blobGeo = new THREE.CircleGeometry(0.7, 40); blobGeo.rotateX(-Math.PI / 2);
 const blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
 blobMat.userData.outlineParameters = { visible: false };
 const blobs = [you, pal].map(() => { const m = new THREE.Mesh(blobGeo, blobMat); m.renderOrder = 1; scene.add(m); return m; });
 function updateBlobs() { [you, pal].forEach((b, i) => { const m = blobs[i]; m.visible = b.visible;
   if (!b.visible) return; const p = b.position; const onPed = [pedestal, pedestal2].some(pd => pd.visible && Math.hypot(p.x - pd.position.x, p.z - pd.position.z) < 1.65);
-  m.position.set(p.x, (onPed ? 0.185 : 0.012), p.z); m.scale.setScalar(b.scale.x * (1 - 0.25 * Math.min(1, (b.userData.body.position.y || 0) * 2))); }); }
+  m.position.set(p.x, (onPed ? 0.2 : 0.02), p.z); m.scale.setScalar(b.scale.x * (1 - 0.25 * Math.min(1, (b.userData.body.position.y || 0) * 2))); }); }
 const outline = new OutlineEffect(renderer, { defaultThickness: 0.0045, defaultColor: [0, 0, 0], defaultAlpha: 1 });
 
 function segAt(t) {
@@ -1139,7 +1145,7 @@ function segAt(t) {
 function applyPal(name) { const p = PALG[name] || PALG.gancho; skyMat.uniforms.top.value.set(p[0]); skyMat.uniforms.bot.value.set(p[1]); scene.fog.color.set(p[1]); }
 function place(shot, t, lt, aspect) {
   camera.aspect = aspect;
-  camera.position.copy(shot.pos).add(V(Math.sin(t * 1.3) * 0.04, Math.sin(t * 1.7 + 1) * 0.03, 0));
+  camera.position.copy(shot.pos);   // sin temblor de cámara en mano: la base grande se veía vibrar
   camera.fov = shot.fov * (1 - 0.07 * (1 - easeOut(lt / 0.45)));
   camera.updateProjectionMatrix(); camera.lookAt(shot.tgt);
   sky.position.copy(camera.position);
