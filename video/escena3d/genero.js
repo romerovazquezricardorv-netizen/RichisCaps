@@ -1117,6 +1117,19 @@ scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) o.material = Array.isAr
 sky.material.userData.outlineParameters = { visible: false };
 ground.material.userData.outlineParameters = { visible: false };
 scene.environmentIntensity = 0.25;
+// sin sombras proyectadas (con sombreado de cómic se veían como parches que parpadeaban):
+// en su lugar, una sombrita redonda fija bajo cada personaje, y pedestales claros con volumen
+renderer.shadowMap.enabled = false;
+scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) { o.castShadow = false; o.receiveShadow = false; } });
+pedestal.material.color.set(0xffffff); pedestal.material.emissive.set(0x000000);
+ground.material.color.set(0xcdbfa8);
+const blobGeo = new THREE.CircleGeometry(0.7, 40); blobGeo.rotateX(-Math.PI / 2);
+const blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
+blobMat.userData.outlineParameters = { visible: false };
+const blobs = [you, pal].map(() => { const m = new THREE.Mesh(blobGeo, blobMat); m.renderOrder = 1; scene.add(m); return m; });
+function updateBlobs() { [you, pal].forEach((b, i) => { const m = blobs[i]; m.visible = b.visible;
+  if (!b.visible) return; const p = b.position; const onPed = [pedestal, pedestal2].some(pd => pd.visible && Math.hypot(p.x - pd.position.x, p.z - pd.position.z) < 1.65);
+  m.position.set(p.x, (onPed ? 0.185 : 0.012), p.z); m.scale.setScalar(b.scale.x * (1 - 0.25 * Math.min(1, (b.userData.body.position.y || 0) * 2))); }); }
 const outline = new OutlineEffect(renderer, { defaultThickness: 0.0045, defaultColor: [0, 0, 0], defaultAlpha: 1 });
 
 function segAt(t) {
@@ -1139,6 +1152,7 @@ window.renderAt = t => {
   const cue = {};
   for (const [k, v] of Object.entries(seg.cues || {})) cue[k] = v - seg.start;
   const shot = SCENES[seg.scene](lt, d, cue, t);
+  updateBlobs();
   renderer.toneMappingExposure = 1.15;
   scene.fog.near = 30; scene.fog.far = 90;
   if (shot.split) {
