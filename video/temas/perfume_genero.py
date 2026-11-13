@@ -32,6 +32,9 @@ GUION = [
 DICHO = {"1994": "mil novecientos noventa y cuatro", "CK": "ci kei", "One": "uan", "Le": "le", "Male": "mal",
          "Jean": "yan", "Paul": "pol", "Gaultier": "goltié", "Klein": "klain"}
 
+# cómo escribe Whisper estas palabras (solo para alinear una voz grabada)
+ALINEAR = {"CK": "ck", "One": "1"}
+
 PILDORAS = {}
 
 SELLO_ESTILO = "comic"   # explosión amarilla con contorno negro

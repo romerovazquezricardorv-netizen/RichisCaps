@@ -461,7 +461,8 @@ def etapa_audio_externa(args):
         for fi, frase in enumerate(frases):
             for w, clave, cue in parse_frase(frase)[0]:
                 palabras_g.append({"w": w, "key": clave, "cue": cue, "scene": escena, "si": si, "frase": f"{si}_{fi}",
-                                   "tok": normaliza(DICHO.get(w.strip(".,:;?!¿"), w))})
+                                   "tok": normaliza(getattr(TEMA, "ALINEAR", {}).get(w.strip(".,:;?!¿"),
+                                                    DICHO.get(w.strip(".,:;?!¿"), w)))})
     fichas = [(k, t) for k, pw in enumerate(palabras_g) for t in pw["tok"]]
     sm = difflib.SequenceMatcher(None, [t for _, t in fichas], [t for t, _ in asr], autojunk=False)
     trozo_de = [None] * len(palabras_g)
