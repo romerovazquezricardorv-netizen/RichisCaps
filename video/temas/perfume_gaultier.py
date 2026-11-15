@@ -43,7 +43,7 @@ GOLPES = [("gancho", "cuerpo", 0.6, 0.0), ("classique", "corse", 0.6, 0.0), ("le
 def efectos(segs):
     c = lambda esc, k: segs[esc]["cues"][k]
     return [
-        (c("gancho", "cuerpo"), "pop", None), (c("abuela", "corses"), "golpe", None), (c("abuela", "pasarela"), "pop", None), (c("abuela", "pop"), "ding", None),
+        (c("gancho", "cuerpo"), "pop", None), (c("abuela", "corses"), "golpe", None), (c("abuela", "obsesion"), "ding", None),
         (c("classique", "classique"), "pop", None), (c("classique", "corse"), "golpe", None),
         (c("lemale", "lemale"), "pop", None), (c("lemale", "rayas"), "golpe", None),
         (c("lata", "lata"), "golpe", None), (c("lata", "super"), "boing", None),
