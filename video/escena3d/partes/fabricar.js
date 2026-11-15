@@ -23,9 +23,27 @@ const tag100 = cartel(['$100']);
 const tagsEnd = [['TIENDA'], ['PUBLICIDAD'], ['GANANCIA']].map(l => cartel(l, 1.4, 0.75));
 const tagName = cartel(['EL NOMBRE'], 2.2, 1.2);
 const _resetFab = resetWorld;
-resetWorld = function () { _resetFab(); fBottle.scale.setScalar(1); fBottle.userData.liquid.scale.y = 1; fBottle.userData.cap.visible = true; beaker.rotation.set(0, 0, 0); };
+resetWorld = function () { _resetFab(); fBottle.scale.setScalar(1); fBottle.userData.liquid.scale.y = 1; fBottle.userData.cap.visible = true; beaker.rotation.set(0, 0, 0); beaker.scale.setScalar(1); beaker.children[2].material.color.set(0xdff2ff); beaker.children[2].material.opacity = 0.6; };
 const lerpMoney = (a, b, k) => '$' + Math.round(lerp(a, b, clamp(k)));
 function factory(T) { lightAt(DUO2); ground.visible = true; belt.visible = true; belt.position.copy(DUO2); beltTop.offset.x = -T * 0.4; counter.visible = true; counter.position.copy(DUO2).add(V(0, 3.1, -1.2)); counter.scale.setScalar(0.7); }
+Object.assign(PALG, { fc: [0x7ad0ff, 0x3a8ae0], fr: [0xc89aff, 0x7a4ad8], fp: [0x9ae08a, 0x3aa05a] });
+const lab = new THREE.Group(); { const b = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 1.4), new THREE.MeshStandardMaterial({ color: 0xeef2f8 })); b.position.y = 1.2; lab.add(b);
+  for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) { const w = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ color: 0x7ad0ff })); w.position.set(-1.1 + k * 0.73, 0.8 + r * 0.8, 0.71); lab.add(w); }
+  const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 1.1, 14), new THREE.MeshStandardMaterial({ color: 0xc0c4cc })); ch.position.set(1.1, 2.9, 0); lab.add(ch);
+  const sg = cartel(['CASA DE', 'FRAGANCIAS'], 2.4, 0.9, 56); sg.position.set(0, 2.95, 0.75); lab.add(sg); }
+scene.add(lab); SETS.push(lab);
+const shampoo = new THREE.Group(); { const b = new THREE.Mesh(new RoundedBoxGeometry(0.6, 1.1, 0.35, 3, 0.12), new THREE.MeshStandardMaterial({ color: 0x3ad0d0 })); b.position.y = 0.55; shampoo.add(b); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.25, 12), new THREE.MeshStandardMaterial({ color: 0xffffff })); c.position.y = 1.2; shampoo.add(c); }
+const soap = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.3, 0.45, 3, 0.12), new THREE.MeshStandardMaterial({ color: 0xff9ad0 })); soap.geometry.translate(0, 0.15, 0);
+const deter = new THREE.Group(); { const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.45), new THREE.MeshStandardMaterial({ color: 0xff8a3a })); b.position.y = 0.5; deter.add(b); const s = new THREE.Mesh(new THREE.CircleGeometry(0.25, 20), new THREE.MeshBasicMaterial({ color: 0xffffff })); s.position.set(0, 0.55, 0.23); deter.add(s); }
+const goods = [shampoo, soap, deter]; goods.forEach(g => { scene.add(g); SETS.push(g); });
+const funnel = new THREE.Group(); { const c = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.8, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xc0c4cc, side: THREE.DoubleSide })); c.rotation.x = Math.PI; c.position.y = 0.4; funnel.add(c); const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 10), new THREE.MeshStandardMaterial({ color: 0xc0c4cc })); p.position.y = -0.2; funnel.add(p); }
+scene.add(funnel); SETS.push(funnel);
+const snow = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, emissive: 0x5ab0ff, emissiveIntensity: 0.4 }); for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.12), m); b.rotation.z = i * Math.PI / 3; snow.add(b); } }
+scene.add(snow); SETS.push(snow);
+const tagSemanas = cartel(['SEMANAS'], 1.6, 0.7);
+const sunBall = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffd23a, emissive: 0xffa500, emissiveIntensity: 0.4 })); scene.add(sunBall); SETS.push(sunBall);
+const checks3 = [0, 1, 2].map(() => { const c = check.clone(); scene.add(c); SETS.push(c); return c; });
+const testTags = [['PIEL'], ['COLOR'], ['CALOR', 'Y LUZ']].map(l => cartel(l, 1.3, 0.7));
 const SCENES = {
   gancho(t, d, cue, T) {
     const tc = cue.cien ?? d * 0.8;
@@ -75,6 +93,48 @@ const SCENES = {
     if (t > tn) { sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 2.6, 0.4)), 1.4, 1.0, 0xffd23a, 1); }
     qMark.visible = t > ts; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, ts, ts + 0.4)) * 0.6)); qMark.position.copy(DUO2).add(V(1.4, 1.6, 0.4)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.4, 7.6), V(0, 1.6, 0)), pal: 'f6' };
+  },
+  casas(t, d, cue, T) {
+    const tm = cue.marca ?? d * 0.2, tc = cue.casas ?? d * 0.45, tmi = cue.miles ?? d * 0.65, tdt = cue.detergente ?? d * 0.85;
+    lightAt(DUO2); ground.visible = true;
+    if (t < tc - 0.3) {
+      fBottle.visible = true; fBottle.scale.setScalar(0.7); fBottle.position.copy(DUO2).add(V(0, 0, 0)); fBottle.rotation.y = 0.3 * Math.sin(T);
+      if (t > tm - 0.2) { xMark.visible = true; xMark.scale.setScalar(Math.max(0.001, spring(prog(t, tm - 0.2, tm + 0.2))) * 0.6); xMark.position.copy(DUO2).add(V(1.2, 2.2, 0.6)); }
+      return { ...sh(DUO2, V(0, 2.2, 7.4), V(0, 1.4, 0)), pal: 'fc' };
+    }
+    lab.visible = true; lab.position.copy(DUO2).add(V(0, 0, -0.8)); lab.scale.setScalar(0.72 * Math.max(0.001, spring(prog(t, tc - 0.3, tc + 0.2))));
+    goods.forEach((g, i) => { const k = spring(prog(t, (i < 2 ? tmi : tdt) - 0.2 + i * 0.12, (i < 2 ? tmi : tdt) + 0.2 + i * 0.12)); g.visible = k > 0.01; g.scale.setScalar(Math.max(0.001, k) * 0.75);
+      g.position.copy(DUO2).add(V(-1.0 + i * 1.0, 0, 1.4)); g.rotation.y = 0.3 * Math.sin(T + i); });
+    if (t > tmi) { sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.0, 1.2)), 1.8, 1.2, 0x7ad0ff, 1); }
+    return { ...sh(DUO2, V(0, 2.6, 9.6), V(0, 1.5, 0)), pal: 'fc' };
+  },
+  reposa(t, d, cue, T) {
+    const tr = cue.reposa ?? d * 0.1, ts = cue.semanas ?? d * 0.25, tf = cue.filtra ?? d * 0.55, tt = cue.transparente ?? d * 0.7, te = cue.embotella ?? d * 0.88;
+    ped(DUO2);
+    beaker.visible = true; beaker.scale.setScalar(1.1); beaker.position.copy(DUO2).add(V(-0.5, 0.18, 0));
+    const alc = beaker.children[2]; alc.material.color.setRGB(...(t > tt ? [0.87, 0.95, 1] : [0.85, 0.75, 0.55])); alc.material.opacity = t > tt ? 0.55 : 0.85;
+    if (t < tf - 0.3) {
+      clock.visible = true; clock.position.copy(DUO2).add(V(0.85, 2.0, 0.5)); clock.scale.setScalar(Math.max(0.001, spring(prog(t, tr - 0.2, tr + 0.2))) * 0.55); clock.userData.hand.rotation.z = -T * 6;
+      tagSemanas.visible = t > ts - 0.2; tagSemanas.scale.setScalar(Math.max(0.001, spring(prog(t, ts - 0.2, ts + 0.2))) * 0.65); tagSemanas.position.copy(DUO2).add(V(0.85, 1.0, 0.8));
+    } else if (t < te - 0.3) {
+      snow.visible = true; snow.position.copy(DUO2).add(V(0.85, 2.1, 0.5)); snow.rotation.z = T; snow.scale.setScalar(Math.max(0.001, spring(prog(t, tf - 0.3, tf + 0.1))) * 0.8);
+      funnel.visible = true; funnel.position.copy(DUO2).add(V(-0.5, 1.9, 0)); funnel.scale.setScalar(Math.max(0.001, spring(prog(t, tf - 0.1, tf + 0.3))) * 0.8);
+      if (t > tt) { sparks.visible = true; setSparks(T, DUO2.clone().add(V(-0.5, 0.8, 0)), 0.8, 1.0, 0xbfe6ff, 1); }
+    } else {
+      fBottle.visible = true; fBottle.scale.setScalar(0.55); fBottle.position.copy(DUO2).add(V(1.0, 0.18, 0.2)); fBottle.rotation.y = 0.3 * Math.sin(T);
+      fBottle.userData.liquid.scale.y = Math.max(0.02, easeIO(prog(t, te - 0.3, te + 0.8)));
+      beaker.rotation.z = -0.6 * Math.sin(Math.PI * clamp(prog(t, te - 0.3, te + 1.0)));
+    }
+    return { ...sh(DUO2, V(0, 2.3, 7.4), V(0, 1.4, 0)), pal: 'fr' };
+  },
+  pruebas(t, d, cue, T) {
+    const tp = cue.pruebas ?? d * 0.15, tms = [cue.irrite ?? d * 0.4, cue.color ?? d * 0.6, cue.luz ?? d * 0.82];
+    ped(DUO2);
+    fBottle.visible = true; fBottle.scale.setScalar(0.6); fBottle.position.copy(DUO2).add(V(-0.9, 0.18, 0)); fBottle.rotation.y = 0.3 * Math.sin(T);
+    tms.forEach((tm, i) => { const k = spring(prog(t, tm - 0.2, tm + 0.2)); testTags[i].visible = k > 0.01; testTags[i].scale.setScalar(Math.max(0.001, k) * 0.6); testTags[i].position.copy(DUO2).add(V(0.8, 2.4 - i * 0.75, 0.5));
+      checks3[i].visible = t > tm + 0.2; checks3[i].scale.setScalar(Math.max(0.001, spring(prog(t, tm + 0.2, tm + 0.5))) * 0.3); checks3[i].position.copy(DUO2).add(V(1.75, 2.4 - i * 0.75, 0.6)); });
+    if (t > tms[2] - 0.2) { sunBall.visible = true; sunBall.position.copy(DUO2).add(V(-0.9, 3.0, -0.3)); sunBall.scale.setScalar(Math.max(0.001, spring(prog(t, tms[2] - 0.2, tms[2] + 0.2)))); }
+    return { ...sh(DUO2, V(0, 2.3, 7.8), V(0, 1.5, 0)), pal: 'fp' };
   },
 };
 

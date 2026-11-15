@@ -1,6 +1,6 @@
 # Guion para CapCut: «¿Por qué el perfume es tan caro?» (estilo cómic)
 
-Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos.
+Versión larga: con la voz de Nandez debe quedar en **1:05–1:10 aprox.** Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos.
 
 ## Texto corrido (para pegar en CapCut)
 
@@ -10,7 +10,15 @@ El líquido es casi todo alcohol, y la esencia, que es lo que huele, es solo una
 
 Entonces, ¿a dónde se va tu dinero? Una parte al frasco y a la caja, otra a la tienda que te lo vende, y un pedazo enorme a la publicidad: los anuncios con famosos no son baratos.
 
+Y un secreto: muchas marcas de moda ni siquiera fabrican su perfume. Se lo encargan a empresas como Coty, L'Oréal o Puig, que lo hacen con una licencia.
+
+También importa la concentración: una colonia tiene de dos a cinco por ciento de esencia, un eau de toilette, de cinco a quince, un eau de parfum, de quince a veinte, y un extracto, hasta treinta.
+
+¿Y los perfumes de nicho? Usan más esencia, y hacen muchos menos frascos, por eso cuestan más.
+
 Pero ojo: barato no siempre es mejor. Una buena esencia sí cuesta, y se nota en cuánto dura en tu piel.
+
+Un truco para pagar menos: los testers traen el mismo líquido, pero sin caja. Y en las tiendas libres de impuestos de los aeropuertos, a veces salen más baratos.
 
 Así que la próxima vez que pagues un perfume, recuerda: también estás pagando el anuncio. ¿Cuánto es lo más que has pagado por uno?
 
@@ -27,5 +35,6 @@ Estilo: sombreado plano con contorno negro, fondos con puntitos de cómic, trans
 - El líquido aromático es una parte pequeña del precio de un perfume de diseñador: entre ~1 % y ~8 % según la fuente.
 - El resto: frasco y empaque (~10-30 %), tienda y distribución (~30-60 %), publicidad y ganancia de la marca.
 - Las cifras varían entre fuentes; en el video la gráfica es ilustrativa.
+- Versión larga: 09): se agregan las licencias (Coty, L'Oréal, Puig fabrican perfumes de muchas marcas de moda), las concentraciones (colonia 2-5 %, EDT 5-15 %, EDP 15-20 %, extracto hasta 30 %), los perfumes de nicho (más esencia y producciones pequeñas) y los testers (mismo líquido sin caja).
 
 Cuando tengas la voz, exporta en **480p y 24 fps** y mándamela.

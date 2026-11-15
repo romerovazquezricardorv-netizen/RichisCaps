@@ -1,22 +1,26 @@
 # Guion para CapCut: «5 perfumes famosos que mucha gente dice que están sobrevalorados» (estilo cómic)
 
-Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos.
+Versión larga: con la voz de Nandez debe quedar en **1:05–1:10 aprox.** Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos.
 
 ## Texto corrido (para pegar en CapCut)
 
-Cinco perfumes famosísimos que mucha gente dice que están sobrevalorados. Ojo: no son malos.
+Cinco perfumes famosísimos que mucha gente dice que están sobrevalorados. Ojo: no son malos, y no lo digo yo: son críticas que se repiten en foros y reseñas.
 
-Número cinco: By the Fireplace. Se hizo viral, y la expectativa es más grande que el perfume.
+¿Y por qué pasa esto? Por el hype: TikTok, influencers, y precios que suben cada año.
 
-Número cuatro: Hacivat. Mucha gente lo compra como alternativa al Aventus... y tampoco es barato.
+Número cinco: By the Fireplace. Huele a madera quemada y castañas. Se hizo viral, y la expectativa es más grande que el perfume.
 
-Número tres: Sauvage. Huele bien... pero lo usa todo el mundo.
+Número cuatro: Hacivat. Huele a piña y musgo. Mucha gente lo compra como alternativa al Aventus... y tampoco es barato.
+
+Número tres: Sauvage. Es de los perfumes más vendidos del mundo. Huele bien... pero lo usa todo el mundo.
 
 Número dos: Aventus. Por su precio, porque cambia de lote a lote, y porque tiene clones muy parecidos.
 
-Y el número uno: Baccarat Rouge 540. Carísimo, y ahora lo hueles en cada esquina.
+Y el número uno: Baccarat Rouge 540. Huele a azúcar quemada y madera. Carísimo, y ahora lo hueles en cada esquina.
 
-¿Cuál agregarías tú?
+Mi consejo: antes de comprar uno caro, prueba una muestra unos días en tu piel, o compra un decant: unos mililitros en un frasquito.
+
+Al final, el mejor perfume es el que te gusta a ti. ¿Cuál agregarías tú?
 
 ## Qué se ve
 
@@ -34,5 +38,6 @@ Estilo: sombreado plano con contorno negro, fondos con puntitos de cómic, trans
 - Sauvage: huele bien pero es omnipresente.
 - Hacivat: se compra como alternativa a Aventus, pero tampoco es barato.
 - By the Fireplace: se volvió viral y para muchos la expectativa supera al perfume.
+- Versión larga: 09): por qué pasa (hype, TikTok, influencers, precios), una nota de olor de cada uno (By the Fireplace: castaña y madera ahumada; Hacivat: piña y musgo; BR540: azúcar quemada/ámbar y madera) y el consejo de probar una muestra.
 
 Cuando tengas la voz, exporta en **480p y 24 fps** y mándamela.

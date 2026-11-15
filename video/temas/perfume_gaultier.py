@@ -4,6 +4,9 @@ Datos (revisados): Classique (1993), el primer perfume de la marca, es un torso 
 obsesión de Gaultier ligada a los corsés de su abuela (diseñó corsés para pasarela y para giras de estrellas del pop).
 Le Male (1995) es un torso de hombre con la camiseta de rayas de marinero (la "marinière", su sello) y venía en una
 lata metálica, que Gaultier comparó con las latas de comida del supermercado. Los frascos son modelos genéricos.
+Versión larga (~1:09): Gaultier contó que su primer sostén de conos se lo hizo de niño a su osito de peluche (Nana);
+Madonna usó su corsé de conos en la gira Blond Ambition de 1990; saca ediciones especiales de las latas y torsos que
+la gente colecciona.
 """
 from temas._comun_comic import *
 
@@ -12,20 +15,27 @@ SALIDA = "perfume-gaultier-torso.mp4"
 
 GUION = [
     ("gancho", ["¿Por qué los perfumes de Jean Paul Gaultier tienen forma de *cuerpo*{cuerpo}?"]),
-    ("abuela", ["De niño, Gaultier veía los *corsés*{corses} de su abuela{abuela},", "y se volvieron su obsesión{obsesion}:",
-                "los puso en pasarelas{pasarela}, y hasta en giras de estrellas del pop{pop}."]),
+    ("abuela", ["De niño, Gaultier veía los *corsés*{corses} de su abuela{abuela},", "y se volvieron su obsesión{obsesion}."]),
+    ("osito", ["Tanto, que su primer sostén de conos{conos}", "se lo hizo... a su *osito de peluche*{osito}."]),
+    ("madonna", ["Años después, ese diseño se volvió leyenda{leyenda}:", "*Madonna*{madonna} usó su corsé de conos en su gira de 1990{gira}."]),
+    ("terrible", ["Por cosas así le dicen el *niño terrible*{terrible} de la moda francesa{francesa}:", "también fue de los primeros en poner *faldas a los hombres*{faldas} en la pasarela{pasarela}."]),
     ("classique", ["En 1993 lanzó su primer perfume, *Classique*{classique}:", "un frasco con forma de torso de mujer... *con corsé*{corse}."]),
     ("lemale", ["Dos años después llegó *Le Male*{lemale}:", "un torso de hombre con la camiseta de *rayas de marinero*{rayas},", "su sello personal{sello}."]),
-    ("lata", ["Y en vez de una caja elegante, lo metió en una *lata*{lata},", "como las de comida del supermercado{super}."]),
+    ("lata", ["Y en vez de una caja elegante, lo metió en una *lata*{lata},", "como las de comida del supermercado{super}.",
+              "Y no era solo un chiste{chiste}: la lata también protege al perfume de la *luz*{luz}."]),
+    ("coleccion", ["Desde entonces saca ediciones especiales de las latas y los torsos{ediciones},", "y hay gente que las *colecciona*{colecciona}.",
+                   "Gaultier se despidió de las pasarelas en 2020{retiro},", "pero sus torsos siguen en todas las perfumerías{siguen}."]),
     ("final", ["Por eso sus frascos parecen *esculturas*{escultura}:", "como si el perfume fuera otra *prenda*{prenda} de ropa.", "¿Tú tienes alguno{tienes}?"]),
 ]
-DICHO = {"1993": "mil novecientos noventa y tres", "Jean": "yan", "Paul": "pol", "Gaultier": "goltié", "Gaultier,": "goltié", "Classique": "clasic", "Le": "le", "Male": "mal"}
-ALINEAR = {"1993": "1993"}
+DICHO = {"1990": "mil novecientos noventa", "Madonna": "madona", "2020": "dos mil veinte", "1993": "mil novecientos noventa y tres", "Jean": "yan", "Paul": "pol", "Gaultier": "goltié", "Gaultier,": "goltié", "Classique": "clasic", "Le": "le", "Male": "mal"}
+ALINEAR = {"1993": "1993", "1990": "1990", "2020{retiro},": "2020"}
 SELLOS = [
     ("abuela", "corses", "¡CORSÉS!", (255, 214, 0), 1.0),
     ("classique", "corse", "¡CON CORSÉ!", (255, 214, 0), 1.1),
     ("lemale", "rayas", "¡RAYAS!", (90, 160, 255), 1.0),
     ("lata", "lata", "¿¡UNA LATA!?", (255, 214, 0), 1.2),
+    ("osito", "osito", "¡SU OSITO!", (255, 214, 0), 1.1),
+    ("terrible", "faldas", "¡FALDAS!", (255, 214, 0), 1.0),
 ]
 GOLPES = [("gancho", "cuerpo", 0.6, 0.0), ("classique", "corse", 0.6, 0.0), ("lemale", "rayas", 0.5, 0.0), ("lata", "lata", 0.8, 0.2)]
 
@@ -38,4 +48,9 @@ def efectos(segs):
         (c("lemale", "lemale"), "pop", None), (c("lemale", "rayas"), "golpe", None),
         (c("lata", "lata"), "golpe", None), (c("lata", "super"), "boing", None),
         (c("final", "escultura"), "ding", None), (c("final", "tienes"), "pop", None),
+        (c("osito", "conos"), "pop", None), (c("osito", "osito"), "boing", None),
+        (c("madonna", "madonna"), "golpe", None), (c("madonna", "gira"), "ding", None),
+        (c("coleccion", "ediciones"), "pop", None), (c("coleccion", "colecciona"), "ding", None),
+        (c("terrible", "terrible"), "boing", None), (c("terrible", "faldas"), "golpe", None), (c("coleccion", "retiro"), "pop", None),
+        (c("lata", "luz"), "ding", None),
     ]

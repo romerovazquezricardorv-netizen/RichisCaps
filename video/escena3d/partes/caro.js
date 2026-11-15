@@ -29,6 +29,18 @@ SETS.push(pie, ...sliceMeshes.map(m => m.userData.lab), coin100, coin5, alcB, es
 const _resetX = resetWorld;
 resetWorld = function () { _resetX(); pal.userData.body.remove(shades); sliceMeshes.forEach(m => { m.position.set(0, 0, 0); m.scale.setScalar(1); }); [alcB, cheapB, goodB].forEach(b => b.scale.setScalar(1)); };
 
+// empresas de licencias, fila de concentraciones y tester
+Object.assign(PALG, { lic: [0xc89aff, 0x7a4ad8], conc: [0x7ad0ff, 0x3a8ae0], nicho: [0xffd27a, 0xff8a3a], test: [0x9ae08a, 0x3aa05a] });
+function building(name, col) { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.6, 1.0), new THREE.MeshStandardMaterial({ color: col })); b.position.y = 1.3; g.add(b);
+  for (let r = 0; r < 4; r++) for (let k = 0; k < 2; k++) { const w = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xbfe6ff })); w.position.set(-0.3 + k * 0.6, 0.6 + r * 0.5, 0.51); g.add(w); }
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.42), new THREE.MeshBasicMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = 300; c.height = 105; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 300, 105); x.fillStyle = '#111'; x.textAlign = 'center'; x.textBaseline = 'middle'; let f = 60; do { x.font = `900 ${f}px Inter`; f -= 2; } while (x.measureText(name).width > 270); x.fillText(name, 150, 55); return new THREE.CanvasTexture(c); })() }));
+  sg.position.set(0, 2.85, 0.5); g.add(sg); scene.add(g); SETS.push(g); return g; }
+const comps = [['COTY', 0x5a7ad8], ["L'ORÉAL", 0xd85a7a], ['PUIG', 0x5ab87a]].map(([n, c]) => building(n, c));
+const tagTester = cartel(['TESTER', 'SIN CAJA']);
+const tagDuty = cartel(['LIBRE DE', 'IMPUESTOS']);
+const fewB = Array.from({ length: 3 }, () => { const b = makeBottle(0xffa94d, 'NICHO'); scene.add(b); SETS.push(b); return b; });
+const manyB = Array.from({ length: 9 }, () => { const b = makeBottle(0xff9ad0, 'MODA'); scene.add(b); SETS.push(b); return b; });
+function coinStackShow(c, t, t0) { coin5.visible = true; coin5.position.copy(c).add(V(0, 0.9, 0)); coin5.scale.setScalar(Math.max(0.001, spring(prog(t, t0, t0 + 0.4)))); coin5.rotation.y = t * 2; }
 const SCENES = {
   gancho(t, d, cue, T) {
     const tc = cue.cien ?? d * 0.3, t5 = cue.cinco ?? d * 0.85;
@@ -83,6 +95,41 @@ const SCENES = {
     if (t > ta - 0.2) { tv.visible = true; tv.position.copy(DUO2).add(V(0.4, 3.5, -1.0)); tv.scale.setScalar(Math.max(0.001, spring(prog(t, ta - 0.2, ta + 0.2)) * 0.8)); sparks.visible = true; setSparks(T, pal.position.clone().add(V(0, 1.4, 0)), 0.9, 1.6, 0xffd23a, 1); }
     qMark.visible = t > tq; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tq, tq + 0.4)) * 0.6)); qMark.position.copy(you.position).add(V(0, 2.5, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.5, 8.6), V(0.2, 1.8, 0)), pal: 'caro5' };
+  },
+  licencias(t, d, cue, T) {
+    const tn = cue.nifab ?? d * 0.3, tl = cue.lic ?? d * 0.55, tk = cue.licencia ?? d * 0.85;
+    lightAt(DUO2); ground.visible = true;
+    comps.forEach((g, i) => { const p = spring(prog(t, tl - 0.4 + i * 0.2, tl + i * 0.2)); g.visible = p > 0.01; g.scale.set(1, Math.max(0.001, p), 1); g.position.copy(DUO2).add(V(-1.6 + i * 1.6, 0, -0.8)); });
+    alcB.visible = true; alcB.scale.setScalar(0.4); alcB.position.copy(DUO2).add(V(0, 0, 1.4)); alcB.rotation.y = 0.3 * Math.sin(T);
+    if (t > tn - 0.2 && t < tl) { xMark.visible = true; xMark.position.copy(DUO2).add(V(0, 1.8, 1.6)); xMark.scale.setScalar(Math.max(0.001, spring(prog(t, tn - 0.2, tn + 0.2))) * 0.6); }
+    if (t > tk - 0.2) { check.visible = true; check.position.copy(DUO2).add(V(0, 2.0, 1.6)); check.scale.setScalar(Math.max(0.001, spring(prog(t, tk - 0.2, tk + 0.2))) * 0.6); }
+    return { ...sh(DUO2, V(0, 2.6, 9.6), V(0, 1.4, 0)), pal: 'lic' };
+  },
+  conc(t, d, cue, T) {
+    const cs = [Math.min(cue.col ?? d * 0.3, 0.4), cue.edt ?? d * 0.5, cue.edp ?? d * 0.7, cue.ext ?? d * 0.9];
+    lightAt(ROW); ground.visible = true;
+    rowBottles.forEach((b, i) => { const p = spring(prog(t, cs[i] - 0.3, cs[i] + 0.1)); b.visible = p > 0.01; b.scale.setScalar(0.8 * Math.max(0.001, p));
+      b.userData.liquid.scale.y = b.userData.level * easeOut(prog(t, cs[i] - 0.1, cs[i] + 0.6)) + 0.02; b.userData.label.visible = p > 0.5; b.userData.label.material.color.set(0x3a2050); });
+    const k = easeIO(prog(t, 0, d));
+    const cx = -4.5 + [1, 2, 3].reduce((acc, i) => acc + 3.0 * easeIO(prog(t, cs[i] - 0.5, cs[i] + 0.1)), 0);
+    return { pos: ROW.clone().add(V(cx, 2.6, 7.6)), tgt: ROW.clone().add(V(cx, 1.2, 0)), fov: 40, pal: 'conc' };
+  },
+  nicho(t, d, cue, T) {
+    const tm = cue.mas ?? d * 0.4, tn = cue.menos ?? d * 0.6;
+    ped(DUO2);
+    fewB.forEach((b, i) => { b.visible = true; b.scale.setScalar(0.5); b.position.copy(DUO2).add(V(-1.4 + i * 0.6, 0.18, 0)); b.rotation.y = 0.2; b.userData.liquid.scale.y = 1; });
+    manyB.forEach((b, i) => { const p = spring(prog(t, tn - 0.3 + i * 0.05, tn + i * 0.05)); b.visible = p > 0.01; b.scale.setScalar(0.28 * Math.max(0.001, p)); b.position.copy(DUO2).add(V(0.6 + (i % 3) * 0.5, 0.18 + Math.floor(i / 3) * 0.85, -0.3)); });
+    if (t > tm - 0.2) { essDrop.visible = true; essDrop.scale.set(1, 1.3, 1).multiplyScalar(0.6); essDrop.position.copy(DUO2).add(V(-0.8, 2.6 + 0.1 * Math.sin(T * 3), 0.3)); sparks.visible = true; setSparks(T, DUO2.clone().add(V(-0.8, 1.2, 0)), 0.9, 1.6, 0xffb030, 1); }
+    return { ...sh(DUO2, V(0, 2.6, 8.6), V(0, 1.5, 0)), pal: 'nicho' };
+  },
+  tester(t, d, cue, T) {
+    const tt = cue.tester ?? d * 0.25, ta = cue.aeropuerto ?? d * 0.75;
+    ped(DUO2);
+    alcB.visible = true; alcB.scale.setScalar(0.75); alcB.position.copy(DUO2).add(V(-0.5, 0.18, 0)); alcB.rotation.y = 0.3 * Math.sin(T);
+    tagTester.visible = t > tt - 0.2 && t < ta - 0.2; tagTester.position.copy(DUO2).add(V(0.9, 2.2, 0.6)); tagTester.scale.setScalar(Math.max(0.001, spring(prog(t, tt - 0.2, tt + 0.2))) * 0.9); tagTester.rotation.z = -0.12;
+    tagDuty.visible = t > ta - 0.2; tagDuty.position.copy(DUO2).add(V(0.9, 2.2, 0.6)); tagDuty.scale.setScalar(Math.max(0.001, spring(prog(t, ta - 0.2, ta + 0.2))) * 0.9); tagDuty.rotation.z = -0.12;
+    if (t > ta) { coinStackShow(DUO2.clone().add(V(0.9, 0.18, 1.2)), t, ta); }
+    return { ...sh(DUO2, V(0, 2.4, 8.0), V(0, 1.5, 0)), pal: 'test' };
   },
 };
 

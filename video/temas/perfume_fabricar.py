@@ -4,6 +4,9 @@ Datos (revisados, cifras aproximadas del sector): en un perfume de diseñador de
 de esencia en un eau de parfum de 100 ml, el resto alcohol) cuesta del orden de 3 a 10 dólares; el vidrio solo cuesta
 alrededor de 1 dólar, y el frasco decorado con tapa y atomizador puede llegar a unos 8; la caja y el empaque suman unos
 cuantos dólares. El resto del precio es tienda, publicidad y ganancia.
+Versión larga (~1:09): las casas de fragancias (Givaudan, Firmenich, IFF, Symrise) crean la mayoría de los perfumes; el
+perfume reposa (macera) unas semanas antes de embotellarse; pruebas de seguridad y estabilidad (irritación, color, calor
+y luz).
 """
 from temas._comun_comic import *
 
@@ -12,19 +15,25 @@ SALIDA = "perfume-cuanto-cuesta-fabricar.mp4"
 
 GUION = [
     ("gancho", ["¿Cuánto cuesta *fabricar*{fabricar} un perfume de diseñador de unos cien dólares{cien}?"]),
-    ("liquido", ["Empecemos por el *líquido*{liquido}:", "unos quince mililitros de esencia{esencia}, y lo demás es alcohol{alcohol}.",
-                 "Todo eso cuesta entre *tres y diez dólares*{tres}."]),
+    ("casas", ["Primero{primero}: casi nunca lo crea la marca{marca}.", "Lo hacen casas de fragancias como *Givaudan*, *Firmenich*, *IFF* o *Symrise*{casas},",
+               "que crean los olores de miles de productos{miles}:", "tu shampoo, tu jabón, y hasta tu detergente{detergente}."]),
+    ("liquido", ["Ahora sí, el *líquido*{liquido}:", "unos quince mililitros de esencia{esencia}, y lo demás es alcohol{alcohol}.",
+                 "Todo eso cuesta entre *tres y diez dólares*{tres}.",
+                 "Y ese alcohol es especial: es *alcohol desnaturalizado*{desnat}, para que nadie se lo tome{tome}."]),
+    ("reposa", ["Después de mezclarlo, el perfume *reposa*{reposa} unas semanas{semanas}, como el vino{vino}.", "Luego se *enfría* y se *filtra*{filtra}, para que quede transparente{transparente},", "y ya puede embotellarse{embotella}."]),
     ("frasco", ["El *frasco*{frasco}: el vidrio solo cuesta como un dólar{dolar},", "pero ya decorado, con tapa y atomizador{tapa}, puede llegar a unos *ocho*{ocho}."]),
     ("caja", ["La *caja*{caja} y el empaque{empaque}:", "unos cuantos dólares más{mas}."]),
+    ("pruebas", ["Y antes de venderse, pasa *pruebas*{pruebas}:", "que no irrite la piel{irrite},", "que no cambie de color{color},", "y que aguante el calor y la luz{luz}."]),
     ("total", ["Total{total}: fabricarlo cuesta unos *veinte dólares*{veinte}, y a veces menos{menos}.", "Lo demás se va en tienda{tienda}, publicidad{publi} y ganancia{ganancia}."]),
     ("final", ["Así que sí: pagas más por el *nombre*{nombre} que por el olor{olor}.", "¿Te sorprende{sorprende}?"]),
 ]
-DICHO = {}
+DICHO = {"Givaudan": "yivodán", "Firmenich": "firmenik", "IFF": "i efe efe", "Symrise": "simráis", "Symrise*{casas},": "simráis"}
 SELLOS = [
     ("liquido", "tres", "$3 – $10", (150, 210, 60), 1.1),
     ("frasco", "ocho", "HASTA $8", (150, 210, 60), 1.0),
     ("total", "veinte", "≈ $20", (255, 214, 0), 1.3),
     ("final", "nombre", "¡EL NOMBRE!", (255, 214, 0), 1.0),
+    ("pruebas", "pruebas", "¡PRUEBAS!", (255, 214, 0), 1.0),
 ]
 GOLPES = [("liquido", "tres", 0.5, 0.0), ("frasco", "ocho", 0.5, 0.0), ("total", "veinte", 0.9, 0.25), ("final", "nombre", 0.6, 0.0)]
 
@@ -37,4 +46,7 @@ def efectos(segs):
         (c("caja", "caja"), "pop", None), (c("caja", "mas"), "ding", None),
         (c("total", "veinte"), "golpe", None), (c("total", "publi"), "pop", None),
         (c("final", "nombre"), "golpe", None), (c("final", "sorprende"), "pop", None),
+        (c("casas", "casas"), "pop", None), (c("casas", "miles"), "ding", None), (c("reposa", "reposa"), "tin", 1), (c("reposa", "vino"), "ding", None),
+        (c("pruebas", "pruebas"), "golpe", None), (c("pruebas", "irrite"), "tin", 1), (c("pruebas", "color"), "tin", 2), (c("pruebas", "luz"), "tin", 3),
+        (c("liquido", "tome"), "boing", None), (c("reposa", "filtra"), "pop", None),
     ]

@@ -1092,6 +1092,23 @@ const sword = new THREE.Group(); { const bl = new THREE.Mesh(new THREE.BoxGeomet
 scene.add(dove, sword); SETS.push(dove, sword, crown2);
 const _resetA = resetWorld;
 resetWorld = function () { _resetA(); you.userData.body.remove(bicorne); you.userData.hand.remove(wineGlass); };
+Object.assign(PALG, { hist: [0xe8c890, 0xa8784a], precio: [0x9ae08a, 0x3aa05a], exito: [0xffd23a, 0xff8a3a], loreal: [0x7ad0ff, 0x3a8ae0] });
+const scroll = new THREE.Group(); { const p = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.2), new THREE.MeshBasicMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = 360; c.height = 440; const x = c.getContext('2d'); x.fillStyle = '#f2dcae'; x.fillRect(0, 0, 360, 440); x.fillStyle = '#5a3a1a'; x.textAlign = 'center'; x.font = 'italic 900 90px Georgia, serif'; x.fillText('1760', 180, 200); x.font = 'italic 40px Georgia'; x.fillText('desde...', 180, 110); for (let i = 0; i < 5; i++) { x.fillRect(60, 260 + i * 32, 240 - (i % 2) * 60, 6); } return new THREE.CanvasTexture(c); })(), side: THREE.DoubleSide }));
+  scroll.add(p); [-1, 1].forEach(s => { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.0, 12), new THREE.MeshStandardMaterial({ color: 0xc8a06a })); r.rotation.z = Math.PI / 2; r.position.y = s * 1.12; scroll.add(r); }); }
+scene.add(scroll); SETS.push(scroll);
+const lupa = new THREE.Group(); { const r = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.07, 10, 32), new THREE.MeshStandardMaterial({ color: 0x2a2a30 })); lupa.add(r); const g = new THREE.Mesh(new THREE.CircleGeometry(0.42, 28), new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.35 })); lupa.add(g);
+  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 10), new THREE.MeshStandardMaterial({ color: 0x5a3a1a })); h.position.set(0.45, -0.6, 0); h.rotation.z = 0.6; lupa.add(h); }
+scene.add(lupa); SETS.push(lupa);
+const tagCaro = cartel(['$$$']), tagBarato = cartel(['$']);
+const codeTag = cartel(['LOTE', 'A4219'], 1.4, 0.75);
+const trophy = new THREE.Group(); { const g = new THREE.MeshStandardMaterial({ color: 0xffc83a }); const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.3, 0.9, 24, 1, true), g); cup.material.side = THREE.DoubleSide; cup.position.y = 1.4; trophy.add(cup);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 12), g); st.position.y = 0.75; trophy.add(st); const b = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.3, 0.6, 3, 0.05), g); b.position.y = 0.35; trophy.add(b);
+  [-1, 1].forEach(s => { const h = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 8, 16, Math.PI), g); h.position.set(s * 0.65, 1.45, 0); h.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2; trophy.add(h); }); }
+scene.add(trophy); SETS.push(trophy);
+function bldg(name, col) { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.8, 1.0), new THREE.MeshStandardMaterial({ color: col })); b.position.y = 1.4; g.add(b);
+  for (let r = 0; r < 4; r++) for (let k = 0; k < 2; k++) { const w = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.32), new THREE.MeshBasicMaterial({ color: 0xbfe6ff })); w.position.set(-0.35 + k * 0.7, 0.6 + r * 0.55, 0.51); g.add(w); }
+  const sg = cartel([name], 1.4, 0.5); sg.position.set(0, 3.1, 0.5); g.add(sg); scene.add(g); SETS.push(g); return g; }
+const bKering = bldg('KERING', 0x5a5a6a), bLoreal = bldg("L'ORÉAL", 0xd85a7a);
 const SCENES = {
   gancho(t, d, cue, T) {
     const te = cue.euros ?? d * 0.8;
@@ -1152,6 +1169,47 @@ const SCENES = {
     pose(you, { hop: hopF(T, 3, 0.05), mood: 'smile', eye: 1.2, look: [-0.8, 0.2], blink: 0.35, rotY: -0.6 });
     qMark.visible = t > to; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, to, to + 0.4)) * 0.6)); qMark.position.copy(you.position).add(V(0.3, 2.1, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.2, 7.2), V(0, 1.4, 0)), pal: 'av7' };
+  },
+  historia(t, d, cue, T) {
+    const tc = cue.cuestionan ?? d * 0.75;
+    ped(DUO2);
+    scroll.visible = true; scroll.position.copy(DUO2).add(V(-0.3, 1.8, 0)); scroll.scale.setScalar(Math.max(0.001, spring(prog(t, 0.1, 0.5)))); scroll.rotation.y = 0.15 * Math.sin(T);
+    if (t > tc - 0.4) { lupa.visible = true; lupa.position.copy(DUO2).add(V(0.6 + 0.2 * Math.sin(T * 2), 2.0 + 0.15 * Math.cos(T * 2), 0.6)); qMark.visible = true; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tc, tc + 0.4))) * 0.6); qMark.position.copy(DUO2).add(V(1.3, 2.8, 0.3)); qMark.rotation.y = 0.3 * Math.sin(T * 3); }
+    return { ...sh(DUO2, V(0, 2.2, 7.0), V(0, 1.7, 0)), pal: 'hist' };
+  },
+  precio(t, d, cue, T) {
+    const tp = cue.precio ?? d * 0.2, tf = cue.fraccion ?? d * 0.4, tc = cue.codigo ?? d * 0.65, tdb = cue.debate ?? d * 0.88;
+    ped(DUO2);
+    if (t < tc - 0.2) {
+      mainB.visible = true; mainB.scale.setScalar(0.6); mainB.position.copy(DUO2).add(V(-0.8, 0.18, 0)); mainB.rotation.y = 0.3;
+      clones[0].visible = true; clones[0].scale.setScalar(0.45); clones[0].position.copy(DUO2).add(V(0.9, 0.18, 0.2));
+      tagCaro.visible = t > tp - 0.2; tagCaro.position.copy(DUO2).add(V(-0.8, 2.4, 0.6)); tagCaro.scale.setScalar(Math.max(0.001, spring(prog(t, tp - 0.2, tp + 0.2))) * 0.8);
+      tagBarato.visible = t > tf - 0.2; tagBarato.position.copy(DUO2).add(V(0.9, 1.9, 0.6)); tagBarato.scale.setScalar(Math.max(0.001, spring(prog(t, tf - 0.2, tf + 0.2))) * 0.6);
+      return { ...sh(DUO2, V(0, 2.3, 7.6), V(0, 1.4, 0)), pal: 'precio' };
+    }
+    // código del lote en la base del frasco
+    mainB.visible = true; mainB.scale.setScalar(0.75); mainB.position.copy(DUO2).add(V(0, 1.3, 0)); mainB.rotation.set(Math.PI * 0.75, 0.3 * Math.sin(T), 0);
+    codeTag.visible = true; codeTag.position.copy(DUO2).add(V(0.9, 0.5, 1.2)); codeTag.scale.setScalar(0.7 * Math.max(0.001, spring(prog(t, tc, tc + 0.3))));
+    if (t > tdb - 0.3) [you, pal].forEach((b, i) => { b.visible = true; b.scale.setScalar(0.55); b.position.copy(DUO2).add(V(i ? 1.4 : -1.4, 0.18, 0.6)); pose(b, { hop: Math.abs(Math.sin(T * 6 + i)) * 0.1, mood: 'o', mouthOpen: 1.2, eye: 1.2, look: [i ? -1 : 1, 0], blink: 1, brow: -0.8, rotY: i ? -0.7 : 0.7, armR: 1.8 + 0.4 * Math.sin(T * 10 + i) }); });
+    return { ...sh(DUO2, V(0, 2.2, 7.0), V(0, 1.4, 0)), pal: 'precio' };
+  },
+  exito(t, d, cue, T) {
+    const te = cue.exito2 ?? d * 0.4, tn = cue.nicho ?? d * 0.85;
+    ped(DUO2);
+    mainB.visible = true; mainB.scale.setScalar(0.55); mainB.position.copy(DUO2).add(V(-0.7, 0.18, 0)); mainB.rotation.y = 0.3;
+    trophy.visible = t > te - 0.3; trophy.position.copy(DUO2).add(V(0.8, 0.18, 0.2)); trophy.scale.setScalar(Math.max(0.001, spring(prog(t, te - 0.3, te + 0.1))) * 1.0);
+    if (t > te) { sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.4, 0)), 1.6, 2, 0xffd23a, 1); }
+    if (t > tn) setConfetti(DUO2, t, tn);
+    return { ...sh(DUO2, V(0, 2.3, 7.4), V(0, 1.4, 0)), pal: 'exito' };
+  },
+  loreal(t, d, cue, T) {
+    const tl = cue.loreal ?? d * 0.5;
+    lightAt(DUO2); ground.visible = true;
+    bKering.visible = true; bKering.position.copy(DUO2).add(V(-1.1, 0, -0.8)); bKering.scale.setScalar(0.75); bLoreal.visible = true; bLoreal.position.copy(DUO2).add(V(1.1, 0, -0.8)); bLoreal.scale.setScalar(0.75);
+    const k = easeIO(prog(t, tl - 0.3, tl + 0.7));
+    mainB.visible = true; mainB.scale.setScalar(0.38); mainB.position.copy(DUO2).add(V(lerp(-1.1, 1.1, k), 0.0 + 1.2 * Math.sin(k * Math.PI), 0.9)); mainB.rotation.y = T;
+    crown2.visible = true; scene.add(crown2); crown2.position.copy(mainB.position).add(V(0, 1.25, 0)); crown2.scale.setScalar(0.5); crown2.rotation.y = T;
+    return { ...sh(DUO2, V(0, 2.6, 10.5), V(0, 1.7, 0)), pal: 'loreal' };
   },
 };
 

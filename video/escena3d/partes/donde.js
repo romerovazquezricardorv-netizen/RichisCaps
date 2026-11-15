@@ -20,6 +20,16 @@ resetWorld = function () { _resetX(); pal.userData.body.remove(hairdo); hairdo.s
 function wp(obj, x, y, z) { obj.updateMatrixWorld(true); return obj.localToWorld(V(x, y, z)); }
 function marker(i, p, t0, t, T) { const m = MK[i]; const k = spring(prog(t, t0 - 0.1, t0 + 0.3)); m.visible = k > 0.01; m.position.copy(p); m.scale.setScalar(Math.max(0.001, k) * (1 + 0.15 * Math.sin(T * 8 + i))); m.rotation.set(0, 0, 0); }
 
+Object.assign(PALG, { cuantos: [0xffd23a, 0xff8a3a], momento: [0x7ad0ff, 0x3a8ae0], ropa: [0x9ae08a, 0x3aa05a], sol: [0xffe08a, 0xffa03a], nariz: [0xc89aff, 0x7a4ad8] });
+const sprayCount = text3d('4', 1.0, new THREE.MeshStandardMaterial({ color: 0xffc83a }), 0.25); scene.add(sprayCount); SETS.push(sprayCount);
+const sprayNums = ['1', '2', '3', '4'].map(n => { const t = text3d(n, 0.7, new THREE.MeshStandardMaterial({ color: 0xffc83a }), 0.2); scene.add(t); SETS.push(t); return t; });
+const dizzy = Array.from({ length: 3 }, () => { const m = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.04, 8, 20), new THREE.MeshStandardMaterial({ color: 0x9ad04a })); scene.add(m); SETS.push(m); return m; });
+const shirtR = makeShirt(); scene.add(shirtR); SETS.push(shirtR);
+const stain = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), new THREE.MeshBasicMaterial({ color: 0xd8a83a, transparent: true, opacity: 0.85 })); scene.add(stain); SETS.push(stain);
+const sunD = new THREE.Group(); { const c = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffd23a, emissive: 0xffa000, emissiveIntensity: 0.3 })); sunD.add(c);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const r = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 8), c.material); r.position.set(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0); r.rotation.z = a - Math.PI / 2; sunD.add(r); } }
+scene.add(sunD); SETS.push(sunD);
+const skinSpot = new THREE.Mesh(new THREE.CircleGeometry(0.25, 24), new THREE.MeshBasicMaterial({ color: 0x8a5a34, transparent: true, opacity: 0.7 })); scene.add(skinSpot); SETS.push(skinSpot);
 const SCENES = {
   gancho(t, d, cue, T) {
     const tn = cue.nada ?? d * 0.45, te = cue.equivocado ?? d * 0.85;
@@ -100,6 +110,55 @@ const SCENES = {
     if (t > td) setHearts(t, you.position.clone().add(V(0, 2.4, 0.3)), td, 5, 0.9);
     qMark.visible = t > tq; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tq, tq + 0.4)) * 0.6)); qMark.position.copy(you.position).add(V(1.0, 2.4, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.3, 7.6), V(0, 1.5, 0)), pal: 'd6' };
+  },
+  cuantos(t, d, cue, T) {
+    const tc = cue.cuantas ?? 0.2, td = cue.dos ?? d * 0.35, tm = cue.mareas ?? d * 0.8;
+    ped(DUO2);
+    you.scale.setScalar(0.8); you.position.copy(DUO2).add(V(-0.7, 0.18, 0.3)); youBottle.visible = true;
+    const n = Math.min(4, Math.floor(prog(t, tc, td + 0.8) * 4 + (t > tc ? 1 : 0)));
+    pose(you, { hop: hopF(T, 3, 0.04), mood: 'smile', eye: 1.1, look: [0.6, 0.2], blink: 1, rotY: 0.4, armR: 1.6 });
+    sprayNums.forEach((m, i) => { m.visible = i < n && t < tm - 0.3; m.position.copy(DUO2).add(V(-0.9 + i * 0.6, 2.35, 0.9)); m.scale.setScalar(0.7 * Math.max(0.001, spring(prog(t, tc + i * 0.3, tc + 0.3 + i * 0.3)))); });
+    if (t < tm - 0.3) setMist(t, you.position.clone().add(V(0.8, 1.5, 0.5)), V(0.6, 0.1, 0).normalize(), tc, [1, 0.8, 0.95]);
+    if (t > tm - 0.4) { pal.scale.setScalar(0.75); pal.position.copy(DUO2).add(V(1.2, 0.18, 0.5)); pose(pal, { hop: 0, mood: 'o', mouthOpen: 0.8, eye: 0.8, look: [Math.sin(T * 8), Math.cos(T * 8)], blink: 1, brow: 0.8, rotY: -0.5 }); pal.rotation.z = 0.12 * Math.sin(T * 5);
+      dizzy.forEach((m, i) => { m.visible = true; const a = T * 4 + i * 2.1; m.position.copy(pal.position).add(V(Math.cos(a) * 0.5, 2.0, Math.sin(a) * 0.5)); m.rotation.x = Math.PI / 2; });
+      setStink(t, pal.position.clone().add(V(-0.6, 1.2, 0)), tm - 0.4, 0.4); }
+    return { ...sh(DUO2, V(0, 2.4, 8.2), V(0, 1.5, 0)), pal: 'cuantos' };
+  },
+  momento(t, d, cue, T) {
+    const tb = cue.banarte ?? d * 0.45;
+    lightAt(BATH); bath.visible = true; ground.visible = true; setSteam(T, t < tb + 0.8 ? 0.9 : 0.4);
+    you.scale.setScalar(0.85); you.position.copy(BATH).add(V(0.4, 0.12, 0.6)); you.userData.body.add(towel); towel.visible = true; youBottle.visible = t > tb;
+    pose(you, { hop: hopF(T, 3, 0.05), mood: 'smile', eye: 1.2, look: [-0.5, 0.3], blink: 0.4, rotY: -0.3, armR: t > tb ? 1.6 : 0.3 });
+    if (t > tb) setMist(t, you.position.clone().add(V(0.7, 1.6, 0.4)), V(-0.5, 0.3, 0.2).normalize(), tb, [1, 0.8, 0.95]);
+    return { pos: BATH.clone().add(V(0.6, 2.4, 7.4)), tgt: BATH.clone().add(V(0.2, 1.6, -0.5)), fov: 40, pal: 'momento' };
+  },
+  ropa(t, d, cue, T) {
+    const tm = cue.manchar ?? d * 0.7;
+    ped(DUO2);
+    shirtR.visible = true; shirtR.position.copy(DUO2).add(V(0, 1.6, 0)); shirtR.scale.setScalar(1.4); shirtR.rotation.set(0, 0.2 * Math.sin(T), 0);
+    setMist(t, DUO2.clone().add(V(1.6, 2.3, 0.6)), V(-1, -0.1, -0.1).normalize(), 0.3, [1, 0.8, 0.95]);
+    if (t > tm - 0.2) { stain.visible = true; stain.position.copy(shirtR.position).add(V(0.1, 0.1, 0.26)); stain.scale.setScalar(Math.max(0.001, spring(prog(t, tm - 0.2, tm + 0.3))) * 1.4); xMark.visible = true; xMark.position.copy(DUO2).add(V(0, 3.2, 0.5)); xMark.scale.setScalar(Math.max(0.001, spring(prog(t, tm, tm + 0.3))) * 0.45); }
+    return { ...sh(DUO2, V(0, 2.4, 7.0), V(0, 1.7, 0)), pal: 'ropa' };
+  },
+  sol(t, d, cue, T) {
+    const tp = cue.piel ?? d * 0.6;
+    ped(DUO2);
+    sunD.visible = true; sunD.position.copy(DUO2).add(V(1.2, 3.2, 0)); sunD.rotation.z = T * 0.5; sunD.scale.setScalar(Math.max(0.001, spring(prog(t, 0, 0.5))));
+    const ck = ingMeshes.salida[0]; ck.visible = true; ck.position.copy(DUO2).add(V(-1.3, 2.4, 0.3)); ck.scale.setScalar(0.7); ck.rotation.y = T;
+    lightAt(DUO); duoSkins[1].visible = true; duoSkins[1].position.copy(DUO2).add(V(0, 0.4, 0.6)); duoSkins[1].scale.setScalar(0.65);
+    if (t > tp - 0.2) { skinSpot.visible = true; skinSpot.rotation.x = -Math.PI / 2; skinSpot.position.copy(duoSkins[1].position).add(V(0, 0.12, 0)); skinSpot.scale.setScalar(Math.max(0.001, spring(prog(t, tp - 0.2, tp + 0.3))) * 1.3); }
+    lightAt(DUO2);
+    return { ...sh(DUO2, V(0, 3.0, 7.6), V(0, 1.4, 0)), pal: 'sol' };
+  },
+  nariz(t, d, cue, T) {
+    const ta = cue.acost ?? d * 0.5, td = cue.demas ?? d * 0.8;
+    ped(DUO2);
+    you.scale.setScalar(0.85); you.position.copy(DUO2).add(V(-0.5, 0.18, 0.3)); you.userData.nose.visible = true;
+    pose(you, { hop: 0, mood: t > ta ? 'smile' : 'o', mouthOpen: 0.7, eye: 1, look: [0, -0.4], blink: t > ta ? 0.15 : 1, rotY: 0.3 });
+    if (t > ta) { zzz.visible = true; zzz.position.copy(you.position).add(V(0.6, 2.2, 0.3)); zzz.scale.setScalar(1 + 0.1 * Math.sin(T * 3)); }
+    if (t > td - 0.3) { pal.scale.setScalar(0.7); pal.position.copy(DUO2).add(V(1.2, 0.18, 0.5)); pal.userData.nose.visible = true;
+      pose(pal, { hop: hopF(T, 3, 0.05), mood: 'smile', eye: 1.2, look: [-0.8, 0.2], blink: 0.35, rotY: -0.6 }); setHearts(t, pal.position.clone().add(V(0, 2.0, 0.3)), td, 4, 0.5); }
+    return { ...sh(DUO2, V(0, 2.4, 7.6), V(0, 1.5, 0)), pal: 'nariz' };
   },
 };
 function heatPtsShow(T, c) { sparks.visible = true; setSparks(T, c, 0.6, 0.8, 0xff7a2a, 1); }

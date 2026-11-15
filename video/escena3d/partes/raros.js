@@ -31,6 +31,25 @@ const bubble = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ c
   [[-1.2, -1.5, 0.3], [-1.6, -2.1, 0.2]].forEach(([x, y, r]) => { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), m); s.position.set(x, y, 0); bubble.add(s); }); }
 scene.add(bubble);
 SETS.push(clay, shelf, fifty, book, cloud, dirt, worm, can, ghost, bubble);
+Object.assign(PALG, { burger: [0xffb03a, 0xe0602a], pizza: [0xff6a6a, 0xc0303a], petricor: [0x7ad0ff, 0x3a6aa0], proust: [0xffe0b0, 0xd8a06a] });
+const burger = new THREE.Group(); { const L = [[0xe8a050, 0.0, 0.85, 0.22], [0x5a3a1a, 0.22, 0.9, 0.18], [0xffd23a, 0.38, 0.92, 0.05], [0x5ad06a, 0.45, 0.95, 0.06], [0xe84a3a, 0.52, 0.8, 0.06], [0xe8a050, 0.62, 0.85, 0.3]];
+  L.forEach(([c, y, r, h], i) => { const m = new THREE.Mesh(i === 5 ? new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2) : new THREE.CylinderGeometry(r, r, h, 28), new THREE.MeshStandardMaterial({ color: c })); m.position.y = y + (i === 5 ? 0 : h / 2); if (i === 5) m.scale.y = 0.55; burger.add(m); }); }
+scene.add(burger); SETS.push(burger);
+const flames = Array.from({ length: 4 }, (_, i) => { const m = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 10), new THREE.MeshStandardMaterial({ color: i % 2 ? 0xffd23a : 0xff7a2a })); scene.add(m); SETS.push(m); return m; });
+const flameB = makeBottle(0xd87a3a, 'FLAME'); scene.add(flameB); SETS.push(flameB);
+const day1 = cartel(['1 DÍA']);
+const pizzaS = new THREE.Group(); { const crust = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.14, 32, 1, false, 0, Math.PI / 3), new THREE.MeshStandardMaterial({ color: 0xffd27a })); pizzaS.add(crust);
+  const sauce = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.16, 32, 1, false, 0.05, Math.PI / 3 - 0.1), new THREE.MeshStandardMaterial({ color: 0xff8a3a })); pizzaS.add(sauce);
+  for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0xc8322a })); const a = 0.25 + (i % 2) * 0.5, r = 0.45 + i * 0.17; p.position.set(Math.sin(a) * r, 0.1, Math.cos(a) * r); pizzaS.add(p); } }
+scene.add(pizzaS); SETS.push(pizzaS);
+const minis = Array.from({ length: 10 }, () => { const b = makeBottle(0xffd27a, 'PIZZA'); scene.add(b); SETS.push(b); return b; });
+const madeleine = new THREE.Group(); { const sh2 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe8b060 })); sh2.scale.set(1, 0.4, 1.3); madeleine.add(sh2);
+  for (let i = 0; i < 7; i++) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 1.3), new THREE.MeshStandardMaterial({ color: 0xc8904a })); r.position.set(-0.45 + i * 0.15, 0.2, 0); r.rotation.y = (i - 3) * 0.12; madeleine.add(r); } }
+scene.add(madeleine); SETS.push(madeleine);
+const teaCup = new THREE.Group(); { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.55, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide })); c.position.y = 0.3; teaCup.add(c);
+  const tea = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.47, 0.03, 24), new THREE.MeshStandardMaterial({ color: 0xa8641a })); tea.position.y = 0.5; teaCup.add(tea);
+  const h = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.04, 8, 16), c.material); h.position.set(0.55, 0.3, 0); teaCup.add(h); const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.04, 28), c.material); teaCup.add(pl); }
+scene.add(teaCup); SETS.push(teaCup);
 const SCENES = {
   gancho(t, d, cue, T) {
     const tp = cue.plastilina ?? d * 0.45, te = cue.existe ?? d * 0.8;
@@ -93,6 +112,49 @@ const SCENES = {
     pose(you, { hop: hopF(T, 3.5, 0.07), mood: 'smile', eye: 1.2, look: [0, 0.8], blink: 1, rotY: 0, armR: 2.2, armL: 2.2 });
     qMark.visible = t > to - 0.4; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, to - 0.4, to)) * 0.7)); qMark.position.copy(you.position).add(V(0.7, 2.2, 0.2)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.5, 11.4), V(0, 1.7, 0)), pal: 'r6' };
+  },
+  burger(t, d, cue, T) {
+    const tp = cue.parrilla ?? d * 0.45, tj = cue.japon ?? d * 0.7, td = cue.dia ?? d * 0.9;
+    ped(DUO2);
+    if (t < tj - 0.2) {
+      burger.visible = true; burger.position.copy(DUO2).add(V(-0.35, 0.18, 0.2)); burger.scale.setScalar(Math.max(0.001, spring(prog(t, 0.1, 0.5))) * 0.85); burger.rotation.y = T * 0.5;
+      flameB.visible = t > tp - 0.6; flameB.scale.setScalar(0.45 * Math.max(0.001, spring(prog(t, tp - 0.6, tp - 0.2)))); flameB.position.copy(DUO2).add(V(1.0, 0.18, -0.3)); flameB.rotation.y = -0.3;
+      if (t > tp) flames.forEach((f, i) => { f.visible = true; f.position.copy(burger.position).add(V(-0.5 + i * 0.33, -0.05 + 0.08 * Math.sin(T * 12 + i), 0.75)); f.scale.set(1, 0.8 + 0.3 * Math.sin(T * 10 + i * 2), 1); });
+      return { ...sh(DUO2, V(0, 2.3, 7.4), V(0, 1.2, 0)), pal: 'burger' };
+    }
+    flameB.visible = true; flameB.scale.setScalar(0.6); flameB.position.copy(DUO2).add(V(-0.4, 0.18, 0)); flameB.rotation.y = 0.3 * Math.sin(T);
+    day1.visible = t > td - 0.3; day1.position.copy(DUO2).add(V(0.9, 2.3, 0.5)); day1.scale.setScalar(Math.max(0.001, spring(prog(t, td - 0.3, td + 0.1)))); day1.rotation.z = -0.1;
+    return { ...sh(DUO2, V(0, 2.3, 7.4), V(0, 1.4, 0)), pal: 'burger' };
+  },
+  pizza(t, d, cue, T) {
+    const tc = cue.cien ?? d * 0.4, tp = cue.pizza ?? d * 0.8;
+    ped(DUO2);
+    pizzaS.visible = true; pizzaS.position.copy(DUO2).add(V(0, 1.7 + 0.1 * Math.sin(T * 2), 0)); pizzaS.rotation.set(0.9, T * 0.4, 0); pizzaS.scale.setScalar(Math.max(0.001, spring(prog(t, 0.1, 0.5))) * 0.9);
+    minis.forEach((b, i) => { const p = spring(prog(t, tc - 0.3 + i * 0.05, tc + i * 0.05)); b.visible = p > 0.01; b.scale.setScalar(0.18 * Math.max(0.001, p)); b.position.copy(DUO2).add(V(-1.0 + (i % 5) * 0.5, 0.18, 0.9 + Math.floor(i / 5) * 0.6)); });
+    if (t > tp) { sparks.visible = true; setSparks(T, pizzaS.position, 1.2, 1.2, 0xffd27a, 1); }
+    return { ...sh(DUO2, V(0, 2.6, 7.8), V(0, 1.4, 0)), pal: 'pizza' };
+  },
+  petricor(t, d, cue, T) {
+    const tp = cue.petricor ?? d * 0.4, td = cue.diminutas ?? d * 0.8;
+    ped(DUO2);
+    cloud.visible = true; cloud.position.copy(DUO2).add(V(-0.3, 3.2, 0)); cloud.scale.setScalar(0.85); setDrops(DUO2.clone().add(V(-0.3, 2.9, 0)), T, 18, 0.7, 2.6);
+    dirt.visible = true; dirt.position.copy(DUO2).add(V(-0.3, 0.18, 0.3)); dirt.scale.set(0.8, 0.35, 0.8);
+    you.scale.setScalar(0.7); you.position.copy(DUO2).add(V(1.2, 0.18, 0.6)); you.userData.nose.visible = true;
+    pose(you, { hop: hopF(T, 3, 0.04), mood: 'smile', eye: 1.2, look: [-0.8, -0.2], blink: t > tp ? 0.35 : 1, rotY: -0.6 });
+    if (t > td - 0.2) { sparks.visible = true; setSparks(T, dirt.position.clone().add(V(0.6, 0.6, 0)), 0.6, 1.0, 0xa8784a, 1); }
+    return { ...sh(DUO2, V(0, 2.6, 8.2), V(0, 1.6, 0)), pal: 'petricor' };
+  },
+  proust(t, d, cue, T) {
+    const tm = cue.magdalena ?? d * 0.3, tg = cue.golpe ?? d * 0.55, tr = cue.recuerdos2 ?? d * 0.9;
+    ped(DUO2);
+    teaCup.visible = true; teaCup.position.copy(DUO2).add(V(-0.8, 0.2, 0.4)); teaCup.scale.setScalar(0.9);
+    madeleine.visible = t > tm - 0.3; madeleine.position.copy(DUO2).add(V(0.2, 0.4 + (t < tg ? 0.3 * Math.max(0, Math.sin((t - tm) * 3)) : 0), 0.6)); madeleine.scale.setScalar(Math.max(0.001, spring(prog(t, tm - 0.3, tm + 0.1))) * 0.8); madeleine.rotation.y = 0.5;
+    you.scale.setScalar(0.75); you.position.copy(DUO2).add(V(1.2, 0.18, 0.4)); you.userData.nose.visible = true;
+    pose(you, { hop: 0, mood: 'smile', eye: 1.1, look: [-0.8, -0.3], blink: t > tg ? 0.2 : 1, rotY: -0.6 });
+    if (t > tg - 0.2) { const pb = spring(prog(t, tg - 0.2, tg + 0.3)); bubble.visible = true; bubble.position.copy(DUO2).add(V(0.4, 3.2, 0.2)); bubble.scale.setScalar(Math.max(0.001, pb) * 0.9);
+      pal.scale.setScalar(0.32); pal.position.copy(bubble.position).add(V(0, -0.75, 0.42)); pose(pal, { hop: hopF(T, 5, 0.1), mood: 'smile', eye: 1.2, look: [0, 0], blink: 1, rotY: 0, armR: 2, armL: 2 }); }
+    if (t > tr) setHearts(t, you.position.clone().add(V(0, 2.1, 0.3)), tr, 3, 0.4);
+    return { ...sh(DUO2, V(0, 2.6, 8.4), V(0, 1.9, 0)), pal: 'proust' };
   },
 };
 

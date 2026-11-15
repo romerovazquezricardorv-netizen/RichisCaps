@@ -27,7 +27,26 @@ const corsetBand = new THREE.Group(); { const b = new THREE.Mesh(new THREE.Cylin
   for (let i = 0; i < 4; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.03), new THREE.MeshStandardMaterial({ color: 0x111111 })); l.position.set(0, 0.75 + i * 0.13, 0.86); l.rotation.z = i % 2 ? 0.5 : -0.5; corsetBand.add(l); } }
 const stripeShirt = makeShirt(); stripeShirt.traverse(o => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: stripeTex() }); }); scene.add(stripeShirt); SETS.push(stripeShirt);
 const _resetG = resetWorld;
-resetWorld = function () { _resetG(); pal.userData.body.remove(specs); pal.userData.hand.remove(mic); you.userData.body.remove(stripeShirt, corsetBand); pal.userData.body.remove(corsetBand); if (stripeShirt.parent !== scene) scene.add(stripeShirt); canLid.rotation.x = 0; [torsoF, torsoM].forEach(b => { b.scale.setScalar(1); b.rotation.set(0, 0, 0); }); };
+resetWorld = function () { _resetG(); pal.userData.body.remove(specs, coneCorset); you.userData.body.remove(skirt); pal.userData.hand.remove(mic); you.userData.body.remove(stripeShirt, corsetBand); pal.userData.body.remove(corsetBand); if (stripeShirt.parent !== scene) scene.add(stripeShirt); canLid.rotation.x = 0; [torsoF, torsoM].forEach(b => { b.scale.setScalar(1); b.rotation.set(0, 0, 0); }); };
+Object.assign(PALG, { osito: [0xffd27a, 0xff8a3a], madonna: [0x5a2a7a, 0x1a0a2a], terrible: [0xff9ad0, 0xe0508a], coleccion: [0x7ad0ff, 0x3a8ae0] });
+const teddy = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xc8864a }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14), m); body.scale.y = 1.15; body.position.y = 0.7; teddy.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14), m); head.position.y = 1.6; teddy.add(head);
+  [-1, 1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), m); e.position.set(s * 0.35, 1.95, 0); teddy.add(e); const ey = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), BLACK); ey.position.set(s * 0.16, 1.68, 0.4); teddy.add(ey);
+    const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.4, 6, 10), m); a.position.set(s * 0.65, 0.85, 0.1); a.rotation.z = s * 0.6; teddy.add(a); const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.3, 6, 10), m); l.position.set(s * 0.32, 0.15, 0.25); l.rotation.x = 1.3; teddy.add(l); });
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), new THREE.MeshStandardMaterial({ color: 0xe8b07a })); snout.position.set(0, 1.52, 0.4); teddy.add(snout);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), BLACK); nose.position.set(0, 1.58, 0.56); teddy.add(nose);
+  const bra = new THREE.Group(); [-1, 1].forEach(s => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.38, 16), new THREE.MeshStandardMaterial({ color: 0xff8ab8 })); c.rotation.x = Math.PI / 2; c.position.set(s * 0.22, 1.0, 0.68); bra.add(c); });
+  const strap = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 30), new THREE.MeshStandardMaterial({ color: 0xff8ab8 })); strap.rotation.x = Math.PI / 2; strap.position.y = 1.0; strap.scale.y = 0.95; bra.add(strap); teddy.add(bra); teddy.userData.bra = bra; }
+scene.add(teddy); SETS.push(teddy);
+const coneCorset = new THREE.Group(); { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.86, 0.75, 32), new THREE.MeshStandardMaterial({ color: 0xffb08a })); b.position.y = 1.0; coneCorset.add(b);
+  [-1, 1].forEach(s => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0xffb08a })); c.rotation.x = Math.PI / 2; c.position.set(s * 0.32, 1.2, 0.95); coneCorset.add(c); }); }
+const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.05, 0.7, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0x2a2a5a, side: THREE.DoubleSide, map: stripeTex() })); skirt.position.y = 0.45;
+const year1990 = text3d('1990', 0.7, new THREE.MeshStandardMaterial({ color: 0xffd23a }), 0.2); scene.add(year1990); SETS.push(year1990);
+const colShelf = new THREE.Group(); { const wood = new THREE.MeshStandardMaterial({ color: 0xb8864a }); [0, 1.5].forEach(y => { const b = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.12, 1.0), wood); b.position.y = y; colShelf.add(b); });
+  const cols = [0xff5f8a, 0x3aa0ff, 0xffd23a, 0x3ad07a, 0xb06bff, 0xff8a3a];
+  for (let i = 0; i < 6; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.9, 24), new THREE.MeshStandardMaterial({ color: cols[i] })); c.position.set(-2.0 + (i % 3) * 0.8, (i < 3 ? 0.51 : 2.01), 0); colShelf.add(c);
+    const tm = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.3, 0], [0.28, 0.4], [0.2, 0.6], [0.32, 0.85], [0.1, 1.0], [0, 1.0]].map(([r, y]) => new THREE.Vector2(r, y)), 24), new THREE.MeshStandardMaterial({ color: cols[5 - i] })); tm.scale.z = 0.6; tm.position.set(0.6 + (i % 3) * 0.75, (i < 3 ? 0.06 : 1.56), 0); colShelf.add(tm); } }
+scene.add(colShelf); SETS.push(colShelf);
 const SCENES = {
   gancho(t, d, cue, T) {
     ped(DUO2);
@@ -36,7 +55,7 @@ const SCENES = {
     return { ...sh(DUO2, V(0, 2.2, lerp(6.0, 7.6, easeOut(prog(t, 0, 1.2)))), V(0, 1.4, 0)), pal: 'ga1' };
   },
   abuela(t, d, cue, T) {
-    const tc = cue.corses ?? d * 0.15, tp = cue.pasarela ?? d * 0.6, tpop = cue.pop ?? d * 0.9;
+    const tc = cue.corses ?? d * 0.15, tp = cue.pasarela ?? 999, tpop = cue.pop ?? 999;
     if (t < tp - 0.15) {
       ped(DUO2);
       pal.scale.setScalar(0.9); pal.position.copy(DUO2).add(V(-0.7, 0.18, 0.2)); pal.userData.body.add(wig2); wig2.visible = true; pal.userData.body.add(specs);
@@ -95,6 +114,46 @@ const SCENES = {
     if (t > te) { sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 1.4, 0)), 1.8, 2.4, 0xffd23a, 1); setFloorRings(T, DUO2, 0xffd23a); }
     qMark.visible = t > tq; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tq, tq + 0.4)) * 0.6)); qMark.position.copy(DUO2).add(V(0, 3.0, 0.3)); qMark.rotation.y = 0.3 * Math.sin(T * 3);
     return { ...sh(DUO2, V(0, 2.2, 7.6), V(0, 1.5, 0)), pal: 'ga6' };
+  },
+  osito(t, d, cue, T) {
+    const to = cue.osito ?? d * 0.7;
+    ped(DUO2);
+    teddy.visible = t > to - 0.5; teddy.position.copy(DUO2).add(V(0.4, 0.18, 0.2)); teddy.scale.setScalar(Math.max(0.001, spring(prog(t, to - 0.5, to - 0.1))) * 0.9); teddy.rotation.y = -0.3 + 0.1 * Math.sin(T);
+    teddy.userData.bra.visible = t > to; teddy.userData.bra.scale.setScalar(Math.max(0.001, spring(prog(t, to, to + 0.3))));
+    you.scale.setScalar(0.5); you.position.copy(DUO2).add(V(-0.95, 0.18, 0.6));
+    pose(you, { hop: hopF(T, 4, 0.06), mood: 'smile', eye: 1.3, look: [0.8, 0.2], blink: 1, rotY: 0.6, armR: 1.8 + 0.3 * Math.sin(T * 8) });
+    if (t > to) setHearts(t, teddy.position.clone().add(V(0, 2.2, 0.3)), to, 3, 0.4);
+    return { ...sh(DUO2, V(0, 2.2, 8.2), V(0, 1.3, 0)), pal: 'osito' };
+  },
+  madonna(t, d, cue, T) {
+    const tm = cue.madonna ?? d * 0.4, tg = cue.gira ?? d * 0.85;
+    ped(DUO2);
+    pal.scale.setScalar(0.9); pal.position.copy(DUO2).add(V(0, 0.18, 0.2)); pal.userData.hand.add(mic); mic.visible = true; mic.position.set(0.1, -0.2, 0.2); pal.userData.body.add(coneCorset); coneCorset.visible = t > tm - 0.3;
+    pose(pal, { hop: Math.abs(Math.sin(T * 7)) * 0.15, mood: 'o', mouthOpen: 1.3, eye: 1.2, look: [0, 0.3], blink: 1, rotY: 0.2 * Math.sin(T * 2), armR: 2.0, armL: 2.4 });
+    sparks.visible = true; setSparks(T, DUO2.clone().add(V(0, 2.0, 0)), 2.0, 3, 0xffd23a, 1);
+    year1990.visible = t > tg - 0.3; year1990.position.copy(DUO2).add(V(0, 0.3, 1.6)); year1990.scale.setScalar(0.7 * Math.max(0.001, spring(prog(t, tg - 0.3, tg + 0.1))));
+    return { ...sh(DUO2, V(0, 2.4, 7.6), V(0, 1.6, 0)), pal: 'madonna' };
+  },
+  terrible(t, d, cue, T) {
+    const tf = cue.faldas ?? d * 0.7;
+    if (t < tf - 0.3) {
+      ped(DUO2); you.scale.setScalar(0.75); you.position.copy(DUO2).add(V(0, 0.18, 0.4));
+      pose(you, { hop: hopF(T, 5, 0.1), mood: 'smile', eye: 1.2, look: [0.3, 0.3], blink: 1, brow: -0.6, rotY: 0.2 * Math.sin(T * 3), armR: 2.3, armL: 0.6 });
+      return { ...sh(DUO2, V(0, 2.2, 6.6), V(0, 1.3, 0)), pal: 'terrible' };
+    }
+    lightAt(DUO2); runway.visible = true; runway.position.copy(DUO2).add(V(0, 0.12, -2)); ground.visible = true;
+    you.scale.setScalar(0.75); you.position.copy(DUO2).add(V(0, 0.25, lerp(-4, 1.0, easeOut(prog(t, tf - 0.3, d))))); you.userData.body.add(skirt); skirt.visible = true;
+    pose(you, { hop: Math.abs(Math.sin(T * 8)) * 0.08, mood: 'smile', eye: 1.1, look: [0, 0], blink: 1, rotY: 0 });
+    sparks.visible = true; setSparks(T, you.position.clone().add(V(0, 1.2, 0)), 1.2, 2, 0xffffff, 0.8);
+    return { pos: DUO2.clone().add(V(2.2, 2.4, 6.4)), tgt: DUO2.clone().add(V(0, 1.0, -1.0)), fov: 40, pal: 'terrible' };
+  },
+  coleccion(t, d, cue, T) {
+    const tr = cue.retiro ?? d * 0.6;
+    lightAt(DUO2); ground.visible = true;
+    colShelf.visible = true; colShelf.position.copy(DUO2).add(V(0, 0.4, -0.4));
+    colShelf.children.forEach((c, i) => { if (i > 1) c.scale.setScalar(Math.max(0.001, spring(prog(t, 0.1 + i * 0.04, 0.5 + i * 0.04)))); });
+    if (t > tr - 0.3) { you.scale.setScalar(0.6); you.position.copy(DUO2).add(V(1.05, 0, 1.6)); pose(you, { hop: hopF(T, 3, 0.05), mood: 'smile', eye: 1.2, look: [-0.8, 0.4], blink: 0.4, rotY: -0.6, armR: 2.2 }); setHearts(t, you.position.clone().add(V(0, 1.8, 0.2)), tr, 3, 0.4); }
+    return { ...sh(DUO2, V(0, 2.4, 8.6), V(0, 1.6, 0)), pal: 'coleccion' };
   },
 };
 
