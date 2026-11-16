@@ -13,7 +13,6 @@ SALIDA = "perfume-nicho-vs-disenador.mp4"
 
 GUION = [
     ('gancho', ['Perfume de *nicho* contra perfume de *diseñador*{vs}.', '¿Cuál es la diferencia de verdad{diferencia}?']),
-    ('disenador', ['Los de *diseñador* son de marcas de moda{moda}: Dior, Versace, Carolina Herrera{marcas}.', 'Su negocio principal es la *ropa*{ropa}, y el perfume se hace para gustarle a *millones*{millones}.']),
     ('nicho', ['Los de *nicho* son de casas que solo hacen perfume{solo},', 'con más libertad para hacer olores raros o atrevidos{raros},', 'y en producciones más pequeñas{pequenas}.']),
     ('ejemplos', ['Unos ejemplos de nicho{ejemplos}: Creed{creed}, Xerjoff{xerjoff}, Amouage{amouage} o Le Labo{lelabo0}.', 'El de diseñador lo encuentras en cualquier tienda departamental{departamental};', 'el de nicho, casi siempre en boutiques o tiendas especializadas{boutiques}.']),
     ('pruebas', ['Los de diseñador pasan por pruebas con *público*{publico}:', 'si a la mayoría no le gusta, se cambia{cambia}.', 'El de nicho puede ser de *amor u odio*{odio}.']),
@@ -25,7 +24,6 @@ DICHO = {'Dior': 'dior', 'Versace': 'versáche', 'Carolina': 'carolina', 'Herrer
 ALINEAR = {}
 
 SELLOS = [('gancho', 'vs', 'NICHO VS DISEÑADOR', (255, 214, 0), 1.2),
- ('disenador', 'millones', '¡PARA MILLONES!', (150, 210, 60), 1.0),
  ('nicho', 'raros', '¡ATREVIDO!', (255, 120, 160), 1.0),
  ('pruebas', 'odio', '♥ AMOR U ODIO', (255, 120, 160), 1.0),
  ('precio', 'mejor', '$$$ ≠ MEJOR', (255, 214, 0), 1.1),
@@ -34,8 +32,6 @@ DIVIDIDO = [('pruebas', None, None, 'DISEÑADOR', 'NICHO')]
 GOLPES = [('gancho', 'vs', 0.7, 0.2), ('pruebas', 'odio', 0.5, 0.0), ('precio', 'mejor', 0.6, 0.0), ('borroso', 'gigante', 0.8, 0.25)]
 
 EF = [('gancho', 'vs', 'golpe'),
- ('disenador', 'moda', 'pop'),
- ('disenador', 'millones', 'ding'),
  ('nicho', 'solo', 'pop'),
  ('nicho', 'raros', 'boing'),
  ('ejemplos', 'creed', 'tin'),

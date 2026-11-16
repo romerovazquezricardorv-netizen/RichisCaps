@@ -919,7 +919,7 @@ def componer(tl, salida, cuadros=None, solo_img=None):
     audio = mezcla(tl)
     n = tl["frames"]
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
-           "-i", "-", "-i", audio, "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+           "-i", "-", "-i", audio, "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
            "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", salida]
     ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(n):
@@ -943,7 +943,10 @@ def main():
     ap.add_argument("--procesos", type=int, default=3)
     ap.add_argument("--etapa", choices=["todo", "audio", "3d", "componer", "muestras"], default="todo")
     ap.add_argument("--muestras", default="", help="segundos separados por coma para --etapa muestras")
+    ap.add_argument("--fps", type=int, default=30, help="cuadros por segundo del video (30 o 60)")
     args = ap.parse_args()
+    global FPS
+    FPS = args.fps
     cargar_tema(args.tema)
     args.salida = args.salida or os.path.join(AQUI, TEMA.SALIDA)
     os.environ["ESCENA_QUERY"] = f"escena={TEMA.ESCENA}&tl=/build/{args.tema}/timeline.json"
