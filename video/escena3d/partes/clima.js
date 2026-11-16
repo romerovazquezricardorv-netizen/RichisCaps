@@ -22,15 +22,15 @@ const SCENES = {
     const te = cue.empalagoso ?? d * 0.35, ti = cue.invierno ?? d * 0.8;
     ped(DUO2);
     sweetB.visible = true; sweetB.scale.setScalar(0.5); A(sweetB, 0, 0.18, 0); spin(sweetB, T);
-    if (t < ti - 0.3) { P(sunG, t, 0.2, 0.55); A(sunG, 0.9, 2.3, -0.4); sunG.rotation.z = T * 0.3; if (t > te - 0.2) bud(you, -0.85, 0.5, 0.45, T, { mood: 'frown', eye: 0.5, brow: 0.9, look: [0.6, 0], rotY: 0.4 }); return shot('h1', 7.2, 1.3); }
-    P(snowG, t, ti - 0.3, 0.55); A(snowG, 0.9, 2.3, -0.4); snowG.rotation.z = T * 0.3; setFlakes(T, DUO2);
-    bud(you, -0.85, 0.5, 0.45, T, { mood: 'smile', eye: 0.6, blink: 0.4, look: [0.6, 0], rotY: 0.4 }); setHearts(t, DUO2.clone().add(V(-0.85, 1.4, 0.5)), ti, 3, 0.3);
+    if (t < ti - 0.3) { P(sunG, t, 0.2, 0.42); A(sunG, 0.9, 1.9, -0.6); sunG.rotation.z = T * 0.3; if (t > te - 0.2) bud(you, -0.85, 0.5, 0.45, T, { mood: 'frown', eye: 0.5, brow: 0.9, look: [0.6, 0], rotY: 0.4 }); return shot('h1', 7.2, 1.3); }
+    P(snowG, t, ti - 0.3, 0.42); A(snowG, 0.9, 1.9, -0.6); snowG.rotation.z = T * 0.3; setFlakes(T, DUO2);
+    bud(you, -0.85, 0.5, 0.45, T, { mood: 'smile', eye: 0.6, blink: 0.4, look: [0.6, 0], rotY: 0.4 }); setHearts(t, DUO2.clone().add(V(-0.85, 1.75, 0.5)), ti, 3, 0.3);
     return shot('h6', 7.2, 1.3);
   },
   calor(t, d, cue, T) {
     const tc = cue.calor ?? d * 0.15, te = cue.evapora ?? d * 0.55, tf = cue.fuerte ?? d * 0.85;
     ped(DUO2);
-    sunG.visible = true; sunG.scale.setScalar(0.6); A(sunG, 0.9, 2.4, -0.6); sunG.rotation.z = T * 0.4;
+    sunG.visible = true; sunG.scale.setScalar(0.42); A(sunG, 0.9, 1.95, -0.8); sunG.rotation.z = T * 0.4;
     thermo.visible = true; thermo.scale.setScalar(0.5); A(thermo, -0.95, 0.18, 0.2); thermo.userData.fill.scale.y = 0.6 + 1.6 * easeOut(prog(t, tc, tc + 1.2));
     sweetB.visible = true; sweetB.scale.setScalar(0.45); A(sweetB, 0.1, 0.18, 0); spin(sweetB, T);
     if (t > te - 0.3) setVapC(T, DUO2.clone().add(V(0.1, 1.1, 0)), 0.9, 1.6);
@@ -41,8 +41,8 @@ const SCENES = {
     const td = cue.dulces ?? d * 0.15, tv = cue.vainilla ?? d * 0.35, ta = cue.abrazo ?? d * 0.7;
     ped(DUO2);
     if (t < ta - 0.4) { sweetB.visible = true; sweetB.scale.setScalar(0.42); A(sweetB, 0, 0.18, -0.2); spin(sweetB, T);
-      heavy.forEach((n, i) => { P(n, t, tv - 0.3 + i * 0.2, 0.75); const a = T * 0.7 + i / 3 * Math.PI * 2; A(n, Math.cos(a) * 1.15, 1.2 + 0.2 * Math.sin(a * 2), Math.sin(a) * 0.7 + 0.2); }); return shot('h3', 7.2, 1.3); }
-    sunG.visible = true; sunG.scale.setScalar(0.5); A(sunG, 0.9, 2.4, -0.6); sunG.rotation.z = T * 0.4;
+      heavy.forEach((n, i) => { P(n, t, tv - 0.3 + i * 0.2, 0.75); const a = T * 0.7 + i / 3 * Math.PI * 2; A(n, Math.cos(a) * 1.35, 1.2 + 0.2 * Math.sin(a * 2), Math.sin(a) * 0.9 + 0.2); }); return shot('h3', 7.2, 1.3); }
+    sunG.visible = true; sunG.scale.setScalar(0.42); A(sunG, 0.9, 1.95, -0.8); sunG.rotation.z = T * 0.4;
     const k = easeIO(prog(t, ta - 0.4, ta + 0.2));
     bud(you, lerp(-1.0, -0.3, k), 0.3, 0.55, T, { mood: t > ta ? 'o' : 'smile', mouthOpen: 1.1, eye: t > ta ? 1.4 : 1.0, blink: 1, brow: 0.9, look: [0.6, 0], rotY: 0.3 });
     bud(hug, lerp(1.0, 0.3, k), 0.3, 0.55, T, { mood: 'smile', eye: 0.5, blink: 0.4, look: [-0.6, 0], rotY: -0.3, armL: 2.0 * k, armR: 2.0 * k, hop: 0 });
@@ -52,7 +52,7 @@ const SCENES = {
   verano(t, d, cue, T) {
     const ts = [cue.citricos ?? d * 0.25, (cue.citricos ?? d * 0.25) + 0.3, cue.acuaticas ?? d * 0.45, cue.verdes ?? d * 0.55, cue.florales ?? d * 0.65], tm = cue.menos ?? d * 0.8;
     ped(DUO2);
-    sunG.visible = true; sunG.scale.setScalar(0.45); A(sunG, 1.0, 2.5, -0.8); sunG.rotation.z = T * 0.3;
+    sunG.visible = true; sunG.scale.setScalar(0.4); A(sunG, 1.0, 2.0, -0.9); sunG.rotation.z = T * 0.3;
     freshB.visible = true; freshB.scale.setScalar(0.45); A(freshB, 0, 0.18, -0.2); spin(freshB, T);
     if (t < tm - 0.3) fresh.forEach((n, i) => { P(n, t, ts[i] - 0.2, 0.65); const a = T * 0.7 + i / 5 * Math.PI * 2; A(n, Math.cos(a) * 1.15, 1.2 + 0.2 * Math.sin(a * 2), Math.sin(a) * 0.7 + 0.2); });
     else { bud(you, -0.75, 0.4, 0.5, T, { look: [0.6, 0.1], rotY: 0.4, armR: 1.6 }); youBottle.visible = true; setMist(t, DUO2.clone().add(V(-0.3, 1.3, 0.5)), V(-0.5, -0.2, 0.3).normalize(), tm - 0.3, [0.8, 0.95, 1]);
@@ -84,11 +84,11 @@ const SCENES = {
     lightAt(DUO2); ground.visible = true;
     if (t < tn - 0.4) {
       if (t > Math.min(to - 0.4, 0.3)) { P(office, t, Math.min(to - 0.4, 0.3), 0.75); A(office, 0.75, 0, -0.8); }
-      sunG.visible = true; sunG.scale.setScalar(0.4); A(sunG, -0.9, 2.6, -0.8); sunG.rotation.z = T * 0.3;
+      sunG.visible = true; sunG.scale.setScalar(0.38); A(sunG, -0.9, 2.2, -0.8); sunG.rotation.z = T * 0.3;
       bud(you, -0.5, 0.8, 0.5, T, { look: [0.6, 0.1], rotY: 0.4 }); you.userData.body.add(tie); tie.visible = true; freshB.visible = true; freshB.scale.setScalar(0.3); A(freshB, 0.2, 0, 1.2);
       return shot('h4', 8.0, 1.4);
     }
-    moon.visible = true; moon.scale.setScalar(0.7); A(moon, 0.9, 2.5, -0.8); moon.rotation.y = 0.3;
+    moon.visible = true; moon.scale.setScalar(0.6); A(moon, 0.9, 2.2, -0.8); moon.rotation.y = 0.3;
     bud(you, -0.3, 0.8, 0.55, T, { look: [0.4, 0.2], rotY: 0.3, hop: hopF(T, 4, 0.1), armR: 2.2, armL: 2.2 });
     sweetB.visible = true; sweetB.scale.setScalar(0.35); A(sweetB, 0.6, 0, 1.0); spin(sweetB, T);
     setConfetti(DUO2, t, tn - 0.4);
@@ -97,12 +97,12 @@ const SCENES = {
   armario(t, d, cue, T) {
     const tf = cue.fresco ?? d * 0.25, tc = cue.calido ?? d * 0.5, tch = cue.chamarra ?? d * 0.8;
     ped(DUO2); ped(DUO3, true);
-    sunG.visible = true; sunG.scale.setScalar(0.35); A(sunG, 0.85, 1.4, -0.3); sunG.rotation.z = T * 0.3;
-    P(freshB, t, Math.min(tf - 0.2, 0.3), 0.38); A(freshB, -0.3, 0.18, 0); spin(freshB, T);
-    snowG.visible = true; snowG.scale.setScalar(0.35); A(snowG, 0.85, 1.4, -0.3, DUO3); snowG.rotation.z = T * 0.3;
-    P(sweetB, t, Math.min(tc - 0.2, 0.6), 0.38); A(sweetB, -0.3, 0.18, 0, DUO3); spin(sweetB, T);
+    sunG.visible = true; sunG.scale.setScalar(0.3); A(sunG, 0.85, 1.0, -0.3); sunG.rotation.z = T * 0.3;
+    P(freshB, t, Math.min(tf - 0.2, 0.3), 0.32); A(freshB, -0.3, 0.18, 0); spin(freshB, T);
+    snowG.visible = true; snowG.scale.setScalar(0.3); A(snowG, 0.85, 1.0, -0.3, DUO3); snowG.rotation.z = T * 0.3;
+    P(sweetB, t, Math.min(tc - 0.2, 0.6), 0.32); A(sweetB, -0.3, 0.18, 0, DUO3); spin(sweetB, T);
     if (t > tch - 0.3) { bud(you, 0.55, 0.5, 0.32, T, { look: [-0.6, 0.2], rotY: -0.4 }); you.userData.body.add(beanie); beanie.visible = true; }
-    return splitShot('h1', 'h6', 7.2, 0.8);
+    return splitShot('h1', 'h6', 7.8, 0.6);
   },
   final(t, d, cue, T) {
     const tm = cue.malo ?? d * 0.15, tt = cue.temporada ?? d * 0.5, tc = cue.clima ?? d * 0.82;
