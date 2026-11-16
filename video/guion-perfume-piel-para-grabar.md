@@ -1,43 +1,41 @@
-# Guion para CapCut: «¿Por qué un perfume huele diferente en cada persona?»
+# Guion para CapCut: «¿Por qué el mismo perfume huele distinto en cada persona?» (estilo cómic)
 
-Tono: divertido y cercano, como si le platicaras a un amigo. Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos. Yo ajusto las animaciones a como quede la voz.
+Con la voz de Nandez debe quedar en **1:05–1:10 aprox.** Pega el **texto corrido** en CapCut (Texto → Texto a voz → Nandez). Las pausas salen solas de las comas, los puntos y los puntos suspensivos.
 
 ## Texto corrido (para pegar en CapCut)
 
-¿Te ha pasado? Hueles un perfume increíble en alguien, corres a comprarlo... y en ti huele a jarabe para la tos.
+¿Por qué el mismo perfume huele increíble en tu amigo... y en ti no?
 
-Tranquilo, no estás maldito: tu piel está haciendo química.
+Primero: tu piel. La piel grasa retiene más el perfume, y puede hacerlo durar más; la piel seca lo deja ir más rápido.
 
-Piénsalo así: el perfume es la receta, y tu piel es la cocina. Misma receta, pero cada quien la cocina diferente.
+Segundo: la temperatura. Si tu piel es más caliente, el perfume se evapora más rápido, se siente más fuerte al principio... y se acaba antes. Por eso en el gimnasio, tu perfume se siente el doble.
 
-Si tu piel es grasosa, el perfume se agarra y dura más. Si es seca, se evapora rapidísimo... y te deja plantado.
+Tercero: lo que vive en tu piel. Tu sudor y tus bacterias tienen su propio olor, y se mezclan con el perfume.
 
-Luego está el calor: entre más caliente tu piel, más rápido sale el aroma. Por eso en el gym tu perfume grita... y en invierno, apenas susurra.
+También influyen tus cremas, tu jabón... y hasta lo que comes: el ajo o la comida muy condimentada se notan en el sudor.
 
-Y lo más loco: en tu piel viven millones de bacterias que crean tu olor natural, y ese olor se mezcla con tu perfume.
+Y algo que casi nadie sabe: no solo cambia tu piel, también cambia la nariz de quien te huele. Por genética, cada persona percibe algunas moléculas distinto, y hay quien de plano no huele ciertos almizcles.
 
-Pero espérate, que también influye tu nariz: hay gente que literalmente no puede oler ciertos almizcles.
+Un truco: si tu piel es seca, ponte una crema sin olor antes del perfume. Así se agarra mejor, y dura más.
 
-Y después de un rato, tu nariz se acostumbra y deja de olerte... aunque los demás sí te huelen.
+Por eso, nunca compres un perfume solo porque le queda bien a otro. Pruébalo en tu piel, y espera unas horas.
 
-Así que el truco: nunca compres un perfume por cómo huele en otra persona. Pruébalo en tu piel, espera unos minutos, y ahí sí, decide.
+¿A ti te ha pasado que un perfume no te queda?
 
-Y si en ti huele a jarabe... no era tu perfume. ¿A ti cuál te ha traicionado?
+## Qué se ve
 
-## Qué se ve en cada parte
+**Pantalla dividida EN TU AMIGO vs EN TI**; **piel GRASA vs SECA** con el perfume evaporándose distinto; termómetro, vapor y pesa del gimnasio; bacterias de colores sobre la piel; cremas, jabón, ajo y chile; ADN y una molécula de almizcle que alguien no huele; crema sin olor y reloj de «espera unas horas».
 
-| # | Texto | En pantalla |
-|---|-------|-------------|
-| 1 | Hueles un perfume increíble en alguien… | Tu amiga (rosa) se perfuma; tú (azul) hueles y te salen corazones |
-| 2 | …corres a comprarlo… y huele a jarabe | Corres, te perfumas… sale una nube verde, un jarabe para la tos y pones cara de asco |
-| 3 | No estás maldito: es química | Matraz burbujeante que cambia de color |
-| 4 | El perfume es la receta, tu piel la cocina | Un frasco vuela y suelta una gota en dos sartenes: en una salen corazones, en la otra nube verde |
-| 5 | Piel grasosa / piel seca | Dos pieles: en la grasosa las moléculas se quedan; en la seca salen volando y la piel pone carita triste |
-| 6 | En el gym grita… en invierno susurra | Haciendo pesas con ondas de aroma gigantes; luego con gorro y bufanda, temblando en la nieve |
-| 7 | Millones de bacterias | Bacterias simpáticas brincando sobre la piel |
-| 8 | No puede oler ciertos almizcles | Primer plano olfateando: dos aromas entran, el morado rebota y sale un «?» |
-| 9 | Tu nariz se acostumbra | Medidor de «cuánto te hueles» que baja; te da sueño (zzz) mientras tu amiga te huele feliz |
-| 10 | Pruébalo en tu piel, espera… decide | Rocío sobre la piel, el reloj avanza y aparece una palomita verde |
-| 11 | ¿A ti cuál te ha traicionado? | Los dos personajes riéndose |
+Explosiones de cómic: **PIEL GRASA**, **PIEL SECA**, **¡SE EVAPORA!**, **¡BACTERIAS!**, **¿QUÉ OLOR?**, **¡ESPERA!**.
+
+Estilo: sombreado plano con contorno negro, fondos con puntitos de cómic, transiciones de barrido; sin resplandor, sin soplidos y sin barra de duración. Los frascos y personajes son genéricos: no se copia el diseño de ninguna marca ni la cara de ningún famoso.
+
+## Datos (revisados)
+
+- La piel grasa tiende a retener más el perfume; la piel seca lo deja ir antes (afirmación muy repetida por perfumistas, con poca investigación formal).
+- Más temperatura en la piel = más evaporación: el perfume proyecta más al inicio y se gasta antes.
+- El sudor y las bacterias de la piel tienen su propio olor y se mezclan con el perfume; también influyen cremas, jabones y la dieta (por ejemplo, ajo o comida muy condimentada).
+- La percepción también cambia: por genética, hay personas que perciben distinto ciertas moléculas, y hay quien no huele ciertos almizcles (anosmia específica).
+- Consejo: probar el perfume en la propia piel y esperar unas horas antes de comprarlo.
 
 Cuando tengas la voz, exporta en **480p y 24 fps** y mándamela.

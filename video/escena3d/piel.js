@@ -1,11 +1,16 @@
-// Escenas 3D del video "¿Por qué un perfume huele diferente en cada persona?" (con personajes y humor).
-// Reutiliza la base de perfume.js (frasco, rocío, moléculas, piel, reloj...) y agrega personajes y utilería.
+// Escena 3D generada con armar.sh: base de francia.js + partes/piel.js (estilo cómic).
+// No editar a mano: se edita partes/piel.js y se vuelve a correr ./armar.sh piel perfume_piel
 // Igual que escena.js: window.renderAt(t) -> JPEG del cuadro t, todo función pura del tiempo.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 
 const W = 1080, H = 1920;
 const Q = new URLSearchParams(location.search);
@@ -84,7 +89,7 @@ scene.add(dust);
 scene.add(new THREE.HemisphereLight(0xb79cff, 0x120b24, 0.7));
 const key = new THREE.DirectionalLight(0xfff0e0, 2.4);
 key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
+key.shadow.mapSize.set(2048, 2048);
 Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
 key.shadow.bias = -0.0005;
 scene.add(key, key.target);
@@ -674,249 +679,594 @@ const checkShape = new THREE.Shape(); checkShape.moveTo(-0.6, 0.05); checkShape.
 const check = new THREE.Mesh(new THREE.ExtrudeGeometry(checkShape, { depth: 0.18, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3 }), new THREE.MeshStandardMaterial({ color: 0x3aff7a, emissive: 0x1acf4a, emissiveIntensity: 0.5, roughness: 0.3 }));
 check.geometry.center(); check.castShadow = true; scene.add(check);
 
+// ================================================================== BAÑO vs. CAJÓN
+const BATH = V(0, 0, 170), ROOM = V(40, 0, 170), ZOOM = V(-130, 0, 0), DUO2 = V(0, 0, 210);
+
+function tileTex(c1, c2, n = 8) {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = c2; x.fillRect(0, 0, 256, 256); const s = 256 / n;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { x.fillStyle = c1; x.fillRect(i * s + 2, j * s + 2, s - 4, s - 4); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+// los dos frascos (idénticos al inicio)
+const bathBottle = makeBottle(0xffc46b, 'PARFUM'), roomBottle = makeBottle(0xffc46b, 'PARFUM');
+scene.add(bathBottle, roomBottle);
+const GOODC = new THREE.Color(0xffc46b), BADC = new THREE.Color(0x7a4a14);
+
+// ------------------------------------------------------------------ baño (piso grueso para que no parpadee con el suelo)
+let EXPO = 1.1;
+const bath = new THREE.Group();
+{ const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 7.5, 0.2), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#9fcfdc', '#6fa2b4'); t.repeat.set(3.4, 2.6); return t; })(), roughness: 0.25, metalness: 0.05 }));
+  wall.position.set(0, 3.7, -2.1); bath.add(wall);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 12), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#a9b3bc', '#7d8792', 6); t.repeat.set(5, 4); return t; })(), roughness: 0.3, metalness: 0.1 }));
+  fl.position.set(0, 0.06, 3.9); fl.receiveShadow = true; bath.add(fl);
+  const white = new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.25 });
+  const shelf = new THREE.Mesh(new RoundedBoxGeometry(2.8, 0.12, 0.8, 4, 0.04), white); shelf.position.set(0.2, 1.2, -1.6); bath.add(shelf);
+  [-1.0, 1.4].forEach(x => { const br = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.5), GOLD); br.position.set(x, 1.0, -1.75); bath.add(br); });
+  // regadera con mampara de vidrio
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.95, roughness: 0.15 });
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.3, 0.15, 32), chrome); head.position.set(-3.0, 5.0, -1.3); head.rotation.x = 0.3; bath.add(head);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 12), chrome); pipe.position.set(-3.0, 5.5, -1.8); pipe.rotation.x = 1.0; bath.add(pipe);
+  const tub = new THREE.Mesh(new RoundedBoxGeometry(3.0, 1.0, 1.7, 6, 0.3), white); tub.position.set(-3.4, 0.62, -1.0); bath.add(tub);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.6, 1.7), new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transmission: 0.9, roughness: 0.05, thickness: 0.05 })); panel.position.set(-1.85, 2.9, -1.0); bath.add(panel);
+  const panelEdge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.6, 0.06), chrome); panelEdge.position.set(-1.85, 2.9, -0.15); bath.add(panelEdge);
+  // ventana con marco
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), new THREE.MeshBasicMaterial({ color: 0xfff1b8 })); win.position.set(2.9, 4.3, -1.99); bath.add(win);
+  [[2.9, 5.03, 1.75, 0.08], [2.9, 3.57, 1.75, 0.08], [2.07, 4.3, 0.08, 1.5], [3.73, 4.3, 0.08, 1.5], [2.9, 4.3, 0.06, 1.4]].forEach(([x, y, w, h]) => { const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.08), white); f.position.set(x, y, -1.95); bath.add(f); });
+  // espejo redondeado con marco dorado
+  const mirror = new THREE.Mesh(new RoundedBoxGeometry(1.7, 1.9, 0.05, 4, 0.25), new THREE.MeshStandardMaterial({ color: 0xbcd8ec, metalness: 0.9, roughness: 0.08 })); mirror.position.set(0.2, 2.55, -1.97); bath.add(mirror);
+  const mframe = new THREE.Mesh(new RoundedBoxGeometry(1.85, 2.05, 0.04, 4, 0.3), GOLD); mframe.position.set(0.2, 2.55, -2.0); bath.add(mframe);
+  // toallero con toalla
+  const rack = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.3, 12), GOLD); rack.rotation.z = Math.PI / 2; rack.position.set(2.7, 2.35, -1.85); bath.add(rack);
+  const towel = new THREE.Mesh(new RoundedBoxGeometry(1.0, 1.3, 0.12, 4, 0.05), new THREE.MeshStandardMaterial({ color: 0xff9ab8, roughness: 0.95 })); towel.position.set(2.7, 1.75, -1.8); bath.add(towel);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.1, 0.13), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })); stripe.position.set(2.7, 1.3, -1.8); bath.add(stripe);
+  // tapete, maceta y cosas en la repisa
+  const mat = new THREE.Mesh(new RoundedBoxGeometry(2.2, 0.06, 1.3, 4, 0.03), new THREE.MeshStandardMaterial({ color: 0x6fc0b0, roughness: 1 })); mat.position.set(-0.6, 0.15, 0.9); bath.add(mat);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.25, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0xe0a070, roughness: 0.7 })); pot.position.set(3.4, 0.42, -0.9); bath.add(pot);
+  for (let i = 0; i < 7; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 1.1, 8), new THREE.MeshStandardMaterial({ color: 0x3aa05a, roughness: 0.6 })); const a = i / 7 * 6.28; lf.position.set(3.4 + Math.cos(a) * 0.15, 1.15, -0.9 + Math.sin(a) * 0.15); lf.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); bath.add(lf); }
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.38, 20), new THREE.MeshStandardMaterial({ color: 0x8fd0ff, roughness: 0.3 })); cup.position.set(-0.9, 1.45, -1.6); bath.add(cup);
+  [[0xff6a8a, -0.05], [0x6ad0ff, 0.06]].forEach(([c, x]) => { const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 8), new THREE.MeshStandardMaterial({ color: c })); tb.position.set(-0.9 + x, 1.7, -1.6); tb.rotation.z = x * 3; bath.add(tb); });
+  const soap = new THREE.Mesh(new RoundedBoxGeometry(0.42, 0.16, 0.26, 4, 0.07), new THREE.MeshStandardMaterial({ color: 0xffd0e0, roughness: 0.4 })); soap.position.set(1.1, 1.34, -1.55); bath.add(soap);
+  bath.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = o !== fl && o !== wall; } }); }
+bath.position.copy(BATH); scene.add(bath);
+// sol que entra por la ventana: luz real, no un cono
+const sun = new THREE.SpotLight(0xffe2a0, 0, 14, 0.5, 0.7, 1);
+sun.position.copy(BATH).add(V(3.6, 5.0, 0.5)); sun.target.position.copy(BATH).add(V(0.2, 1.2, -1.4)); sun.castShadow = true; sun.shadow.mapSize.set(512, 512);
+scene.add(sun, sun.target);
+const sunbeam = new THREE.Group(); scene.add(sunbeam);   // (se mantiene por compatibilidad; ya no se dibuja)
+const water = Array.from({ length: 22 }, () => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.025, 0.14, 4, 8), new THREE.MeshStandardMaterial({ color: 0xbfe8ff, emissive: 0x3a9aff, emissiveIntensity: 0.35, roughness: 0.1 })); scene.add(m); return m; });
+// vapor suave (sprites difuminados en lugar de esferas)
+const steamB = Array.from({ length: 22 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false })); scene.add(m); return m; });
+function setSteam(T, amount) {
+  steamB.forEach((m, i) => { const a = (T * 0.18 + i / 22) % 1; m.visible = amount > 0.01;
+    m.position.copy(BATH).add(V(-3.2 + Math.sin(i * 2.3 + T * 0.3) * 1.0 + a * 3.2, 1.2 + a * 4.2, -0.9 + Math.cos(i * 1.3) * 0.8)); m.scale.setScalar(1.4 + a * 3.0); m.material.opacity = 0.32 * amount * Math.sin(a * Math.PI); });
+  water.forEach((m, i) => { const a = (T * 2.2 + i / 22) % 1; m.visible = amount > 0.01; m.position.copy(BATH).add(V(-3.0 + Math.sin(i * 1.7) * 0.35, 4.8 - a * 3.9, -1.2 + Math.cos(i * 2.1) * 0.3)); });
+}
+
+// ------------------------------------------------------------------ recámara con cajonera
+const room = new THREE.Group();
+{ const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 7.5, 0.2), new THREE.MeshStandardMaterial({ color: 0x4a3458, roughness: 0.9 })); wall.position.set(0, 3.7, -2.1); room.add(wall);
+  const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.04, 48), new THREE.MeshStandardMaterial({ color: 0xc86a8a, roughness: 1 })); rug.position.set(1.4, 0.14, 0.8); room.add(rug);
+  const frameP = new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.0, 0.06, 4, 0.04), GOLD); frameP.position.set(-2.4, 3.6, -1.98); room.add(frameP);
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x6fa8d8 })); pic.position.set(-2.4, 3.6, -1.94); room.add(pic);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0x7a5236, roughness: 0.5 })); fl.position.set(0, 0.06, 3.9); fl.receiveShadow = true; room.add(fl);
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.5 });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(3.0, 2.2, 1.4, 4, 0.06), wood); body.position.set(0, 1.1, -1.2); room.add(body);
+  [0.55, 1.65].forEach(y => { const k = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), GOLD); k.position.set(0, y, -0.48); room.add(k); });
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, 0.5, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0xffe0b0, emissive: 0xffc070, emissiveIntensity: 0.8, side: THREE.DoubleSide })); lamp.position.set(1.0, 2.78, -1.2); room.add(lamp);
+  const lpole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.36, 10), GOLD); lpole.position.set(1.0, 2.4, -1.2); room.add(lpole);
+  const lbase = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.1, 24), GOLD); lbase.position.set(1.0, 2.25, -1.2); room.add(lbase);
+  const bulbL = new THREE.PointLight(0xffc070, 3, 6, 1.5); bulbL.position.set(1.0, 2.7, -1.0); room.add(bulbL);
+  room.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } }); }
+room.position.copy(ROOM); scene.add(room);
+const drawer = new THREE.Group();
+{ const wood = new THREE.MeshStandardMaterial({ color: 0x9a6a40, roughness: 0.5 });
+  const front = new THREE.Mesh(new RoundedBoxGeometry(2.7, 0.9, 0.1, 4, 0.04), wood); front.position.z = 0.65; drawer.add(front);
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 1.3), wood); bottom.position.y = -0.4; drawer.add(bottom);
+  [-1.3, 1.3].forEach(x => { const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.8, 1.3), wood); s.position.set(x, 0, 0); drawer.add(s); });
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), GOLD); knob.position.set(0, 0, 0.74); drawer.add(knob); }
+scene.add(drawer);
+const pbox = new THREE.Group();
+{ const b = new THREE.Mesh(new RoundedBoxGeometry(0.9, 1.1, 0.7, 4, 0.04), new THREE.MeshStandardMaterial({ color: 0x15121c, roughness: 0.4 })); b.position.y = 0.55; pbox.add(b);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.1, 0.72), GOLD); band.position.y = 0.75; pbox.add(band); }
+scene.add(pbox);
+
+// ------------------------------------------------------------------ villanos: Calor, Humedad y Luz (personajes propios)
+const villains = [makeBuddy(0xff4a3a), makeBuddy(0x3a9aff), makeBuddy(0xffd23a)];
+{ const flame = new THREE.Group(); [[0.35, 0.9, 0xff8a2a], [0.22, 0.6, 0xffd23a]].forEach(([r, h, c]) => { const f = new THREE.Mesh(new THREE.ConeGeometry(r, h, 16), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9 })); f.position.y = 2.15 + h / 2 - 0.1; flame.add(f); }); villains[0].userData.body.add(flame); villains[0].userData.acc = flame;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.9, 24), villains[1].userData.mat); tip.position.y = 2.05; villains[1].userData.body.add(tip);
+  const rays = new THREE.Group(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 8), new THREE.MeshStandardMaterial({ color: 0xffe36a, emissive: 0xffc020, emissiveIntensity: 0.7 })); c.position.set(Math.cos(a) * 0.95, 1.35 + Math.sin(a) * 0.95, -0.1); c.rotation.z = a - Math.PI / 2; rays.add(c); } villains[2].userData.body.add(rays); villains[2].userData.acc = rays; }
+villains.forEach(v => scene.add(v));
+// botella de vinagre (para el chiste)
+const vinegar = new THREE.Group();
+{ const prof = [[0, 0], [0.42, 0], [0.44, 0.05], [0.44, 1.4], [0.3, 1.75], [0.14, 1.95], [0.13, 2.3], [0, 2.3]].map(([r, y]) => new THREE.Vector2(r, y));
+  vinegar.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 40), new THREE.MeshPhysicalMaterial({ color: 0xc8a050, transmission: 0.35, roughness: 0.15, thickness: 0.4 })));
+  const lab = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.6, 40, 1, true), new THREE.MeshStandardMaterial({ map: labelTex('VINAGRE', '#fff6e0', '#7a3a10'), roughness: 0.6 })); lab.position.y = 0.75; lab.rotation.y = -Math.PI / 2; vinegar.add(lab);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.22, 24), new THREE.MeshStandardMaterial({ color: 0x2a6a2a })); cap.position.y = 2.38; vinegar.add(cap); }
+scene.add(vinegar);
+// zoom: gota gigante con moléculas dentro
+const bigDrop = new THREE.Mesh(new THREE.SphereGeometry(2.0, 48, 32), glassMat()); bigDrop.position.copy(ZOOM).add(V(0, 2.3, 0)); scene.add(bigDrop);
+const zMol = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ roughness: 0.25, emissive: 0xffffff, emissiveIntensity: 0.15 }), 40);
+zMol.frustumCulled = false; scene.add(zMol);
+const zSeed = []; { const r = rng(131); for (let i = 0; i < 40; i++) zSeed.push([r() * 6.28, r() * 3.14, 0.5 + r() * 1.1, i < 18 ? 0 : i < 30 ? 1 : 2, r()]); }
+const ZCOL = [new THREE.Color(0xfff04a), new THREE.Color(0xff6fb0), new THREE.Color(0xe08a2a)];
+
+// ================================================================== COCINA Y REFRI
+const KIT = V(0, 0, 250), DRW = V(40, 0, 250);
+const SHELF_Y = [0.9, 2.0, 3.1];
+
+// ------------------------------------------------------------------ el perfume con carita (personaje propio)
+const perfu = makeBottle(0xffc46b, 'PARFUM');
+const face = new THREE.Group();
+{ const eyes = [], pupils = [], brows = [];
+  [-1, 1].forEach(s => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 14), WHITE); e.position.set(s * 0.26, 1.28, 0.5); e.scale.z = 0.5; face.add(e); eyes.push(e);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), BLACK); p.position.set(s * 0.26, 1.28, 0.58); face.add(p); pupils.push(p);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.04, 0.04), BLACK); b.position.set(s * 0.26, 1.5, 0.52); face.add(b); brows.push(b);
+  });
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.028, 8, 20, Math.PI), BLACK); smile.rotation.z = Math.PI; smile.position.set(0, 1.08, 0.52); face.add(smile);
+  const frown = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.028, 8, 20, Math.PI), BLACK); frown.position.set(0, 0.99, 0.52); face.add(frown);
+  const oM = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), BLACK); oM.scale.set(1, 1.3, 0.5); oM.position.set(0, 1.02, 0.52); face.add(oM);
+  face.userData = { eyes, pupils, brows, smile, frown, oM }; }
+perfu.add(face);
+const perfuScarf = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.09, 10, 32), new THREE.MeshStandardMaterial({ color: 0xff4f6a, roughness: 0.8 })); perfuScarf.rotation.x = Math.PI / 2; perfuScarf.position.y = 2.12; perfu.add(perfuScarf);
+scene.add(perfu);
+function setFace(o = {}) {
+  const u = face.userData, m = o.mood ?? 'smile', eye = o.eye ?? 1, look = o.look ?? [0, 0], blink = o.blink ?? 1;
+  u.eyes.forEach(e => e.scale.set(eye, eye * blink, 0.5 * eye));
+  u.pupils.forEach((p, i) => { p.position.x = (i ? 0.26 : -0.26) + look[0] * 0.05; p.position.y = 1.28 + look[1] * 0.05; p.visible = blink > 0.3; });
+  u.smile.visible = m === 'smile'; u.frown.visible = m === 'frown'; u.oM.visible = m === 'o';
+  const br = o.brow ?? 0; u.brows.forEach((x, i) => { x.rotation.z = (i ? -1 : 1) * br * 0.5; });
+  perfuScarf.visible = !!o.scarf;
+}
+
+// ------------------------------------------------------------------ cocina y refri
+const kitchen = new THREE.Group();
+{ const wall = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 0.2), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#f2c890', '#d89a60', 8); t.repeat.set(4, 3); return t; })(), roughness: 0.4 }));
+  wall.position.set(0, 4, -1.9); kitchen.add(wall);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(16, 0.12, 12), new THREE.MeshStandardMaterial({ map: (() => { const t = tileTex('#e8e0d8', '#5a4a4a', 2); t.repeat.set(8, 6); return t; })(), roughness: 0.4 }));
+  fl.position.set(0, 0.06, 3.9); fl.receiveShadow = true; kitchen.add(fl);
+  const counter = new THREE.Mesh(new RoundedBoxGeometry(4.2, 1.9, 1.5, 4, 0.05), new THREE.MeshStandardMaterial({ color: 0x5a8ac0, roughness: 0.5 })); counter.position.set(-4.0, 0.95, -1.0); kitchen.add(counter);
+  const top = new THREE.Mesh(new RoundedBoxGeometry(4.4, 0.12, 1.6, 4, 0.04), new THREE.MeshStandardMaterial({ color: 0xf5f2ec, roughness: 0.25 })); top.position.set(-4.0, 1.96, -1.0); kitchen.add(top);
+  kitchen.traverse(o => { if (o.isMesh) o.receiveShadow = true; }); }
+kitchen.position.copy(KIT); scene.add(kitchen);
+const fridge = new THREE.Group();
+const fridgeDoor = new THREE.Group();
+{ const white = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.25, metalness: 0.1 });
+  const inner = new THREE.MeshStandardMaterial({ color: 0xbfe0f2, roughness: 0.4 });
+  const W2 = 2.8, H2 = 4.4, D2 = 1.7;
+  [[W2, 0.12, D2, 0, H2, 0], [W2, 0.12, D2, 0, 0.18, 0], [0.12, H2, D2, -W2 / 2, H2 / 2, 0], [0.12, H2, D2, W2 / 2, H2 / 2, 0], [W2, H2, 0.12, 0, H2 / 2, -D2 / 2]].forEach(([w, h, d, x, y, z], k) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), k === 4 ? inner : white); m.position.set(x, y, z); fridge.add(m); });
+  SHELF_Y.forEach(y => { const sh = new THREE.Mesh(new THREE.BoxGeometry(W2 - 0.2, 0.05, D2 - 0.2), new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, transmission: 0.7, roughness: 0.1, thickness: 0.05 })); sh.position.set(0, y, 0.05); fridge.add(sh); });
+  const freezerLine = new THREE.Mesh(new THREE.BoxGeometry(W2, 0.1, 0.05), new THREE.MeshStandardMaterial({ color: 0xc0c8d0 })); freezerLine.position.set(0, 3.8, 0.86); fridge.add(freezerLine);
+  // puerta con bisagra a la izquierda
+  const door = new THREE.Mesh(new RoundedBoxGeometry(W2, H2 - 0.1, 0.18, 4, 0.08), white); door.position.set(W2 / 2, H2 / 2 + 0.05, 0); fridgeDoor.add(door);
+  const handle = new THREE.Mesh(new RoundedBoxGeometry(0.12, 1.3, 0.12, 3, 0.05), new THREE.MeshStandardMaterial({ color: 0xc8ced6, metalness: 0.9, roughness: 0.2 })); handle.position.set(W2 - 0.25, 2.4, 0.16); fridgeDoor.add(handle);
+  [0.8, 1.9, 3.0].forEach(y => { const bin = new THREE.Mesh(new THREE.BoxGeometry(W2 - 0.4, 0.3, 0.25), new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, transmission: 0.6, roughness: 0.1 })); bin.position.set(W2 / 2, y, -0.2); fridgeDoor.add(bin); });
+  fridgeDoor.position.set(-W2 / 2, 0, D2 / 2 + 0.1); fridge.add(fridgeDoor);
+  fridge.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); }
+fridge.position.copy(KIT).add(V(0, 0.12, -0.9)); scene.add(fridge);
+const fridgeLight = new THREE.PointLight(0xdff2ff, 0, 5, 1.5); scene.add(fridgeLight);
+// comida: jamón, gelatina, leche, cebolla (con carita), huevos
+const ham = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xff9aa8, roughness: 0.6 }); for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 32), m); s.position.set(i * 0.04, i * 0.06, 0); ham.add(s); const r = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.02, 6, 32), new THREE.MeshStandardMaterial({ color: 0xffe0e6 })); r.rotation.x = Math.PI / 2; r.position.copy(s.position); ham.add(r); } }
+const jelly = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.45, 0.6, 32), new THREE.MeshPhysicalMaterial({ color: 0x3ad06a, transmission: 0.6, roughness: 0.05, thickness: 0.6, emissive: 0x1a8a3a, emissiveIntensity: 0.25 }));
+const jellyPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.55, 0.05, 32), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }));
+const milk = new THREE.Group(); { const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.5), new THREE.MeshStandardMaterial({ map: labelTex('LECHE', '#ffffff', '#2a6ad8'), roughness: 0.5 })); b.position.y = 0.45; milk.add(b); const r = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.36, 0.28, 4), new THREE.MeshStandardMaterial({ color: 0xffffff })); r.rotation.y = Math.PI / 4; r.position.y = 1.04; milk.add(r); }
+const onion = new THREE.Group();
+{ const m = new THREE.MeshPhysicalMaterial({ color: 0xb04a9a, roughness: 0.35, clearcoat: 0.8 });
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 24), m); b.scale.y = 0.9; b.position.y = 0.42; onion.add(b);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 12), m); tip.position.y = 0.95; onion.add(tip);
+  [-1, 1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), WHITE); e.position.set(s * 0.15, 0.55, 0.38); onion.add(e); const p = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), BLACK); p.position.set(s * 0.15 - 0.03, 0.55, 0.46); onion.add(p); });
+  const grin = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 8, 20, Math.PI), BLACK); grin.rotation.z = Math.PI; grin.position.set(0, 0.38, 0.42); onion.add(grin); }
+const eggs = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xfff2dc, roughness: 0.5 }); for (let i = 0; i < 3; i++) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), m); e.scale.y = 1.3; e.position.set(i * 0.3, 0.18, 0); eggs.add(e); } }
+[ham, jelly, jellyPlate, milk, onion, eggs].forEach(o => { o.traverse(x => { if (x.isMesh) x.castShadow = true; }); scene.add(o); });
+const iceBlock = new THREE.Mesh(new RoundedBoxGeometry(1.0, 1.6, 0.8, 4, 0.1), new THREE.MeshPhysicalMaterial({ color: 0xcfeeff, transmission: 0.85, roughness: 0.15, thickness: 0.8, ior: 1.31 })); scene.add(iceBlock);
+const warmWaves = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 8, 64, Math.PI), new THREE.MeshBasicMaterial({ color: 0xffa04a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); scene.add(m); return m; });
+const condensation = Array.from({ length: 14 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, transmission: 0.8, roughness: 0.02, thickness: 0.1 })); m.scale.y = 1.4; scene.add(m); return m; });
+const condSeed = []; { const r = rng(151); for (let i = 0; i < 14; i++) condSeed.push([r() * 1.2 - 0.6, r() * 1.4 + 0.3, r()]); }
+const xMark = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xff3a4a, emissive: 0xff1a2a, emissiveIntensity: 0.5, roughness: 0.3 }); [1, -1].forEach(s => { const b = new THREE.Mesh(new RoundedBoxGeometry(1.2, 0.26, 0.2, 3, 0.08), m); b.rotation.z = s * Math.PI / 4; xMark.add(b); }); }
+scene.add(xMark);
+const sandwich = new THREE.Group(); { [[0xe8b86a, 0], [0x6ad04a, 0.09], [0xff9aa8, 0.15], [0xe8b86a, 0.24]].forEach(([c, y]) => { const s = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.08, 0.55, 3, 0.03), new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })); s.position.y = y; sandwich.add(s); }); sandwich.scale.setScalar(0.8); }
+
 // ================================================================== estado por escena
-const PALP = {
-  gancho: [0x6b1d6e, 0x1c0a26, 0xff8fd0], noeres: [0x0f6b62, 0x07201f, 0x3affc8], cocina: [0x8a4a1a, 0x261208, 0xffc070],
-  grasa: [0x8a6a1a, 0x261c08, 0xfff07a], calor: [0x9a2a1a, 0x2a0a08, 0xff8a3a], invierno: [0x1f5a9a, 0x081a30, 0xbfe6ff],
-  bacterias: [0x2a7a5a, 0x0a2016, 0x9affc8], nariz: [0x5a2a8a, 0x180c2a, 0xd8a0ff], fatiga: [0x2a3a8a, 0x0a1028, 0xbfd8ff],
-  consejo: [0x1f6b4a, 0x082016, 0x9affb0], final: [0x7a1d63, 0x1c0a26, 0xff8fd0],
+const PALK = {
+  gancho: [0x2a6a8a, 0x0a1e2a, 0xbfe6ff], idea: [0x1f5a9a, 0x081a30, 0xcfeaff], pero: [0x8a4a1a, 0x261208, 0xffb060],
+  gotas: [0x2a5a7a, 0x0a1a26, 0x9fdcff], congela: [0x3a7aa0, 0x0e2230, 0xffffff], cebolla: [0x6b2a6b, 0x1e0a1e, 0xd88ad8],
+  veredicto: [0x2a6b4a, 0x0a1e14, 0x9affb0], final: [0x7a1d63, 0x1c0a26, 0xff8fd0],
 };
 const SETS = [hero, pedestal, pyr, skin, skinRing, clock, fabric, blotter, blotBottle, ...rowBottles, ...rowBottles.map(b => b.userData.label),
   you, pal, ...hearts, stink, syrup, flask, ...bubbles, ...pans, ...drops, ...puffs, ...duoSkins, ...oilDrops, ...cracks, dryFace, molB,
-  thermo, dumbbell, headband, scarf, ...sweat, ...waves, snowPts, bacSurf, ...bugs, noseSet, ...scentShapes, qMark, meter, zzz, check];
+  thermo, dumbbell, headband, scarf, ...sweat, ...waves, snowPts, bacSurf, ...bugs, noseSet, ...scentShapes, qMark, meter, zzz, check,
+  bathBottle, roomBottle, bath, sunbeam, ...water, ...steamB, room, drawer, pbox, ...villains, vinegar, bigDrop, zMol,
+  perfu, kitchen, fridge, ham, jelly, jellyPlate, milk, onion, eggs, iceBlock, ...warmWaves, ...condensation, xMark];
 function resetWorld() {
   SETS.forEach(o => (o.visible = false));
   Object.values(ingMeshes).flat().forEach(m => (m.visible = false));
   mol.count = 0; molB.count = 0;
   hideMist();
-  glow.intensity = 0; spot.intensity = 0;
+  glow.intensity = 0; spot.intensity = 0; sun.intensity = 0; fridgeLight.intensity = 0;
   sparks.visible = floorRing.visible = floorRing2.visible = false;
-  [you, pal].forEach(b => { b.userData.body.remove(headband, scarf); b.userData.hand.remove(dumbbell); });
-  youBottle.visible = palBottle.visible = false;
-  you.scale.setScalar(1); you.userData.nose.visible = false;
+  [you, pal].forEach(b => { b.userData.body.remove(headband, scarf); b.userData.hand.remove(dumbbell, sandwich); b.scale.setScalar(1); });
+  youBottle.visible = palBottle.visible = false; you.userData.nose.visible = false;
+  perfu.scale.setScalar(1); perfu.rotation.set(0, 0, 0); perfu.userData.liquid.material.color.set(0xffc46b); perfu.userData.liquid.material.emissive.set(0xffc46b);
+  fridgeDoor.rotation.y = 0;
+  EXPO = 1.05;
   scene.fog.near = 22; scene.fog.far = 70;
 }
 function lightAt(c) { key.position.copy(c).add(V(-5, 10, 7)); key.target.position.copy(c); rim.position.copy(c).add(V(6, 4, -8)); rim.target.position.copy(c); }
 const blinkAt = (T, seed) => { const ph = (T * 0.35 + seed) % 1; return ph < 0.04 ? 0.1 : 1; };
 const hopF = (T, f = 3, a = 0.08) => Math.abs(Math.sin(T * f)) * a;
+// refri abierto (0..1) con el perfume y la comida en las repisas
+function fridgeScene(open, T) {
+  lightAt(KIT); kitchen.visible = fridge.visible = true; EXPO = 0.78;
+  fridgeDoor.rotation.y = -1.9 * open;
+  fridgeLight.position.copy(fridge.position).add(V(0, 3.6, 0.3)); fridgeLight.intensity = 6 * open;
+  const sy = fridge.position.y;
+  perfu.visible = true; perfu.scale.setScalar(0.42); perfu.position.copy(fridge.position).add(V(0.15, SHELF_Y[1] + 0.03, 0.1));
+  ham.visible = true; ham.position.copy(fridge.position).add(V(-0.8, SHELF_Y[1] + 0.05, 0.0));
+  jelly.visible = jellyPlate.visible = true; jellyPlate.position.copy(fridge.position).add(V(0.95, SHELF_Y[1] + 0.05, 0.1));
+  const wob = 1 + 0.06 * Math.sin(T * 14);
+  jelly.position.copy(jellyPlate.position).add(V(0, 0.32, 0)); jelly.scale.set(1 / Math.sqrt(wob), wob, 1 / Math.sqrt(wob));
+  milk.visible = true; milk.position.copy(fridge.position).add(V(-0.8, SHELF_Y[2] + 0.03, -0.2));
+  eggs.visible = true; eggs.position.copy(fridge.position).add(V(0.4, SHELF_Y[2] + 0.03, 0.1));
+  return sy;
+}
+const shotFridge = (p, z = 6.4, tx = 0.6) => ({ pos: lerpV(KIT.clone().add(V(tx + 0.4, 2.7, z)), KIT.clone().add(V(tx + 0.2, 2.6, z - 0.9)), p), tgt: KIT.clone().add(V(tx, 2.0, -0.8)), fov: 40 });
+const shotClose = (p) => ({ pos: lerpV(KIT.clone().add(V(0.4, 2.85, 5.0)), KIT.clone().add(V(0.3, 2.8, 4.4)), p), tgt: KIT.clone().add(V(0.25, 2.55, -0.8)), fov: 40 });
 
+
+
+// ================================================================== «¿perfumes de hombre y de mujer?» — estilo cómic
+const DUO3 = V(60, 0, 210);
+const PALG = {
+  gancho: [0xffd23a, 0xff8a3a], quimica: [0x7ad0ff, 0x3a8ae0], antiguo: [0xe8c890, 0xa8784a], el: [0x6aa8ff, 0x2a5ad8], ella: [0xff9ad0, 0xe0508a],
+  regla: [0x9ae08a, 0x3aa05a], ckone: [0xd0d0d8, 0x8a8a9a], hoy: [0xffb06a, 0xe0603a], final: [0xc89aff, 0x7a4ad8], nariz: [0xffd23a, 0xff8a3a],
+};
+// cielo de cómic: degradado de dos colores con puntos (semitono)
+skyMat.fragmentShader = `uniform vec3 top, bot; varying vec3 vP;
+  void main(){ float h = clamp(vP.y*0.5+0.5,0.,1.); vec3 base = mix(bot, top, smoothstep(0.35,0.9,h));
+    vec2 g = mod(gl_FragCoord.xy, 30.) - 15.; float r = mix(9.5, 2.5, smoothstep(0.3,0.95,h));
+    float d = 1. - smoothstep(r - 1., r + 1., length(g));
+    gl_FragColor = vec4(mix(base, base * 1.18 + 0.06, d), 1.); }`;
+skyMat.needsUpdate = true;
+stars.visible = false; dust.visible = false; bokeh.visible = false; grid.visible = false;
+ground.material.color.set(0xf3ece0);
+const pedestal2 = pedestal.clone(); pedestal2.material = pedestal.material; scene.add(pedestal2);
+const sideBottle = (c, l) => { const b = makeBottle(c, l); scene.add(b); return b; };
+const blueB = sideBottle(0x5aa0ff, 'HOMME'), pinkB = sideBottle(0xff7ab8, 'FEMME'), uniB = sideBottle(0xe8e4d8, 'UNISEX');
+function tagTex(lines, bg, fg) { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(10, 12, 306, 164); x.fillStyle = bg; x.fillRect(0, 0, 306, 164); x.strokeStyle = '#000'; x.lineWidth = 8; x.strokeRect(4, 4, 298, 156);
+  x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 62px Inter, Arial, sans-serif'; x.fillText(lines[0], 153, 56); x.fillText(lines[1], 153, 118);
+  return new THREE.CanvasTexture(c); }
+const genderTag = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.8), new THREE.MeshBasicMaterial({ map: tagTex(['¿ÉL?', '¿ELLA?'], '#ffffff', '#111111'), transparent: true }));
+scene.add(genderTag);
+// peluca del siglo XVIII y flor de violeta
+const wig = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.8 });
+  [[0, 2.05, 0, 0.42], [-0.45, 1.85, 0, 0.3], [0.45, 1.85, 0, 0.3], [-0.5, 1.5, -0.05, 0.26], [0.5, 1.5, -0.05, 0.26], [0, 1.95, -0.35, 0.35]].forEach(([x, y, z, r]) => { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), m); s.position.set(x, y, z); wig.add(s); });
+  const bow = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.05, 8, 16), new THREE.MeshStandardMaterial({ color: 0x2a2a6a })); bow.position.set(0, 1.55, -0.55); wig.add(bow); }
+const wig2 = wig.clone();
+const violet = new THREE.Group(); { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0x3a8a3a })); st.position.y = 0.45; violet.add(st);
+  const fl = petalRing(5, 0.16, 0.2, 0.12, 0x8a4ad8, 0.2); fl.position.y = 0.95; fl.rotation.x = 1.2; violet.add(fl);
+  const c = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffd23a })); c.position.y = 0.97; violet.add(c); }
+const rose2 = ING.rosa(); rose2.scale.setScalar(0.55); scene.add(rose2);
+const vanillaPods = Array.from({ length: 5 }, () => { const v = ING.vainilla(); scene.add(v); return v; });
+const year = text3d('1994', 0.9, new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: 0.4 }), 0.25); scene.add(year);
+const tv = new THREE.Group(); { const box = new THREE.Mesh(new RoundedBoxGeometry(3.2, 2.1, 0.4, 4, 0.12), new THREE.MeshStandardMaterial({ color: 0x2a2a3a })); tv.add(box);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.7), new THREE.MeshBasicMaterial({ map: tagTex(['TU', 'ANUNCIO'], '#ff4fa0', '#ffffff') })); scr.position.z = 0.21; tv.add(scr);
+  [-1, 1].forEach(s => { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 8), new THREE.MeshStandardMaterial({ color: 0x2a2a3a })); ant.position.set(s * 0.4, 1.4, 0); ant.rotation.z = -s * 0.5; tv.add(ant); }); }
+scene.add(tv);
+// confeti
+const CONFN = 140;
+const confetti = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.12, 0.2), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), CONFN); confetti.frustumCulled = false; scene.add(confetti);
+const confSeed = []; { const r = rng(919); const cols = [0xff3a5a, 0xffd23a, 0x3aa0ff, 0x3ad07a, 0xb06bff]; for (let i = 0; i < CONFN; i++) { confSeed.push([r() * 7 - 3.5, r() * 3 - 1.5, r() * 0.8, r() * 6.28, r()]); confetti.setColorAt(i, new THREE.Color(cols[i % 5])); } }
+function setConfetti(c, t, t0) { let n = 0; for (const [x, z, dl, a, s] of confSeed) { const tt = t - t0 - dl; if (tt < 0) continue; const y = 7 - 2.2 * tt;
+    if (y < 0.05) continue; _m.compose(V(c.x + x + 0.3 * Math.sin(tt * 3 + a), c.y + y, c.z + z), _q.setFromEuler(new THREE.Euler(tt * 5 + a, tt * 3, a)), V(1, 1, 1)); confetti.setMatrixAt(n++, _m); }
+  confetti.count = n; confetti.visible = n > 0; confetti.instanceMatrix.needsUpdate = true; if (confetti.instanceColor) confetti.instanceColor.needsUpdate = true; }
+SETS.push(pedestal2, blueB, pinkB, uniB, genderTag, wig, violet, rose2, ...vanillaPods, year, tv, confetti);
+
+const _resetC = resetWorld;
+resetWorld = function () {
+  _resetC();
+  stars.visible = false; dust.visible = false; bokeh.visible = false; grid.visible = false;
+  [blueB, pinkB, uniB].forEach(b => { b.scale.setScalar(1); b.rotation.set(0, 0, 0); });
+  you.userData.body.remove(wig); pal.userData.body.remove(wig2); you.userData.hand.remove(violet); pal.userData.hand.remove(rose2);
+  youBottle.userData.liquid.material.color.set(0xff9ad0); palBottle.userData.liquid.material.color.set(0xff9ad0);
+  if (rose2.parent !== scene) scene.add(rose2);
+  confetti.count = 0;
+};
+function ped(c, p2 = false) { lightAt(c); const pd = p2 ? pedestal2 : pedestal; pd.visible = true; pd.position.copy(c); }
+const sh = (c, off, tOff, fov = 40) => ({ pos: c.clone().add(off), tgt: c.clone().add(tOff), fov });
+// shot de media pantalla (relación 1080x960): más abierto
+const half = (c, z = 7.6, ty = 1.2, x = 0) => ({ pos: c.clone().add(V(x, 2.0, z)), tgt: c.clone().add(V(x, ty, 0)), fov: 30 });
+function pose(b, o) { b.visible = true; setBuddy(b, o); }
+
+// ================================================================== FRANCIA: palacio, doctor, agua villana, regadera
+const PAL = V(0, 0, 330), IRON = V(60, 0, 330);
+Object.assign(PALG, {
+  palacio: [0xe8c890, 0xa8784a], miedo: [0x7ad0ff, 0x3a8ae0], seco: [0xffd23a, 0xff8a3a], rey: [0xc89aff, 0x7a4ad8],
+  antes: [0xe8c890, 0xa8784a], hoy: [0x7ad0ff, 0x3a8ae0], ironia: [0xffffff, 0xd0d8ff], final: [0xff9ad0, 0xe0508a],
+});
+// salón de palacio
+const palace = new THREE.Group();
+{ const fl = new THREE.Mesh(new THREE.BoxGeometry(18, 0.1, 14), new THREE.MeshStandardMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { x.fillStyle = (i + j) % 2 ? '#2e2a3a' : '#f4ead8'; x.fillRect(i * 32, j * 32, 32, 32); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4.5, 3.5); t.magFilter = THREE.NearestFilter; return t; })() }));
+  fl.position.set(0, 0.05, 2); palace.add(fl);
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(18, 9, 0.3), new THREE.MeshStandardMaterial({ color: 0xf2e2c4 })); wall.position.set(0, 4.5, -3.2); palace.add(wall);
+  for (let i = -3; i <= 3; i++) { const pil = new THREE.Mesh(new THREE.BoxGeometry(0.45, 8.5, 0.25), new THREE.MeshStandardMaterial({ color: 0xffc83a })); pil.position.set(i * 2.6, 4.3, -2.95); palace.add(pil); }
+  [-1.3, 1.3].forEach(x => { const win = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 3.6), new THREE.MeshBasicMaterial({ color: 0xbfe6ff })); win.position.set(x * 2, 4.2, -3.03); palace.add(win);
+    const arch = new THREE.Mesh(new THREE.CircleGeometry(0.85, 32, 0, Math.PI), new THREE.MeshBasicMaterial({ color: 0xbfe6ff })); arch.position.set(x * 2, 6.0, -3.03); palace.add(arch);
+    const fr = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.07, 8, 40, Math.PI), new THREE.MeshStandardMaterial({ color: 0xffc83a })); fr.position.set(x * 2, 6.0, -3.0); palace.add(fr); });
+  // candelabro
+  const ch = new THREE.Group(); const gold = new THREE.MeshStandardMaterial({ color: 0xffc83a });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.06, 8, 48), gold); ring.rotation.x = Math.PI / 2; ch.add(ring);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.6, 8), gold); rod.position.y = 0.8; ch.add(rod);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const cnd = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0xfff6e0 })); cnd.position.set(Math.cos(a), 0.18, Math.sin(a)); ch.add(cnd);
+    const flm = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 8), new THREE.MeshBasicMaterial({ color: 0xffb030 })); flm.position.set(Math.cos(a), 0.4, Math.sin(a)); ch.add(flm); }
+  ch.position.set(0, 6.6, -0.6); palace.add(ch);
+  // jarrones con flores
+  [-3.6, 3.6].forEach(x => { const v = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.25, 0.9, 20), new THREE.MeshStandardMaterial({ color: 0x3a6ad8 })); v.position.set(x, 0.5, -2.3); palace.add(v);
+    for (let i = 0; i < 6; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshStandardMaterial({ color: [0xff6fa0, 0xffd23a, 0xff3a5a][i % 3] })); f.position.set(x + Math.cos(i) * 0.3, 1.2 + (i % 3) * 0.15, -2.3 + Math.sin(i) * 0.25); palace.add(f); } }); }
+palace.position.copy(PAL); scene.add(palace);
+// sombrero y lentes de doctor
+const docHat = new THREE.Group(); { const m = new THREE.MeshStandardMaterial({ color: 0x1a1a22 }); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.05, 32), m); docHat.add(brim);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.6, 24), m); top.position.y = 0.32; docHat.add(top); docHat.position.y = 1.95;
+  [-1, 1].forEach(s => { const g = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.03, 8, 20), m); g.position.set(s * 0.27, -0.33, 0.7); docHat.add(g); }); }
+// corona y camisa blanca
+const crown2 = new THREE.Group(); { const g = new THREE.MeshStandardMaterial({ color: 0xffc83a }); const r = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.45, 0.3, 24, 1, true), g); r.material.side = THREE.DoubleSide; crown2.add(r);
+  for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 8), g); sp.position.set(Math.cos(a) * 0.47, 0.3, Math.sin(a) * 0.47); crown2.add(sp); }
+  crown2.position.y = 2.42; }
+function makeShirt() { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(1.1, 1.2, 0.35, 4, 0.12), m); g.add(body);
+  [-1, 1].forEach(s => { const sl = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.5, 6, 12), m); sl.position.set(s * 0.7, 0.25, 0); sl.rotation.z = s * 1.0; g.add(sl); });
+  const col = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.06, 8, 20), m); col.rotation.x = Math.PI / 2; col.position.y = 0.6; g.add(col); return g; }
+const shirts = Array.from({ length: 4 }, () => { const s = makeShirt(); scene.add(s); return s; });
+const rag = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.08, 0.4, 3, 0.03), new THREE.MeshStandardMaterial({ color: 0xf0e6d0 })); scene.add(rag);
+const two = text3d('2', 1.6, new THREE.MeshStandardMaterial({ color: 0xffc83a }), 0.35); scene.add(two);
+const y1872 = text3d('1872', 1.0, new THREE.MeshStandardMaterial({ color: 0x1a3aa0 }), 0.25); scene.add(y1872);
+// bandera de Francia y regadera gigante
+const flagFR = new THREE.Group(); [[0x1a3aa0, -1], [0xffffff, 0], [0xe8262e, 1]].forEach(([c, i]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 9), new THREE.MeshBasicMaterial({ color: c })); p.position.x = i * 3.0; flagFR.add(p); });
+flagFR.position.copy(IRON).add(V(0, 4.5, -3)); scene.add(flagFR);
+const showerG = new THREE.Group(); { const chrome = new THREE.MeshStandardMaterial({ color: 0xd8dde2 });
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.55, 0.3, 32), chrome); showerG.add(head);
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const h = new THREE.Mesh(new THREE.CircleGeometry(0.06, 10), new THREE.MeshBasicMaterial({ color: 0x3a3a4a })); h.rotation.x = Math.PI / 2; h.position.set(Math.cos(a) * 0.5, -0.16, Math.sin(a) * 0.5); showerG.add(h); }
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.0, 12), chrome); pipe.position.set(0, 1.1, 0); showerG.add(pipe); }
+scene.add(showerG);
+const sDrops = Array.from({ length: 30 }, () => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.25, 4, 8), new THREE.MeshStandardMaterial({ color: 0x6ac8ff })); scene.add(m); return m; });
+function setDrops(c, T, n = 30, rad = 0.55, h = 3.2) { sDrops.forEach((m, i) => { const a = (T * 1.6 + i / n) % 1; m.visible = i < n; m.position.copy(c).add(V(Math.cos(i * 2.4) * rad * ((i % 3) / 3 + 0.3), -a * h, Math.sin(i * 2.4) * rad * ((i % 3) / 3 + 0.3))); }); }
+const towel = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.22, 12, 32), new THREE.MeshStandardMaterial({ color: 0xffffff })); towel.rotation.x = Math.PI / 2; towel.position.y = 2.0;
+SETS.push(palace, two, y1872, flagFR, showerG, ...sDrops, ...shirts, rag);
+
+const _resetF = resetWorld;
+resetWorld = function () {
+  _resetF();
+  pal.userData.body.remove(docHat); you.userData.body.remove(crown2, towel); you.userData.body.remove(shirts[0]);
+  if (shirts[0].parent !== scene) scene.add(shirts[0]);
+  villains.forEach(v => v.scale.setScalar(0.5));
+};
+function inPalace(T) { lightAt(PAL); palace.visible = true; ground.visible = false; }
+function bathOn(T) { lightAt(BATH); bath.visible = true; ground.visible = true; setSteam(T, 0.8); }
+const dropV = villains[1];   // la gota de agua (villana)
+
+// ------------------------------------------------------------------ utilería compartida (videos de marcas)
+function cartel(lines, w = 1.6, h = 0.9, font = 62) { const c = document.createElement('canvas'); c.width = 400; c.height = 220; const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(10, 12, 390, 208); x.fillStyle = '#fff'; x.fillRect(0, 0, 390, 206); x.strokeStyle = '#000'; x.lineWidth = 8; x.strokeRect(4, 4, 382, 198);
+  x.fillStyle = '#111'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  lines.forEach((l, i) => { let f = font; do { x.font = `900 ${f}px Inter, Arial, sans-serif`; f -= 2; } while (x.measureText(l).width > 350); x.fillText(l, 195, lines.length === 1 ? 104 : 66 + i * 76); });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); scene.add(m); SETS.push(m); return m; }
+const coinPile = new THREE.Group(); { for (let i = 0; i < 15; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.1, 28), new THREE.MeshStandardMaterial({ color: 0xffc83a })); c.position.set((i % 5 - 2) * 0.85, 0.06 + Math.floor(i / 5) * 0.11, 0); coinPile.add(c); } }
+const billsG = new THREE.Group(); { for (let i = 0; i < 6; i++) { const st = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 0.55), new THREE.MeshStandardMaterial({ color: 0x4fb06a })); st.add(b);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.42, 0.57), new THREE.MeshStandardMaterial({ color: 0xf6f0d0 })); st.add(band); st.position.set((i % 3 - 1) * 1.2, 0.22 + Math.floor(i / 3) * 0.42, 0); billsG.add(st); } }
+scene.add(coinPile, billsG); SETS.push(coinPile, billsG);
+const BILLN = 50, billRain = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.02, 0.25), new THREE.MeshStandardMaterial({ color: 0x4fb06a }), BILLN); billRain.frustumCulled = false; scene.add(billRain);
+const billSeed = []; { const r = rng(808); for (let i = 0; i < BILLN; i++) billSeed.push([r() * 6 - 3, r() * 2 - 1, r() * 1.2, r() * 6.28]); }
+function setBillRain(c, t, t0) { let n = 0; for (const [x, z, dl, a] of billSeed) { const tt = t - t0 - dl; if (tt < 0) continue; const y = 7 - 1.6 * tt; if (y < 0.05) continue;
+    _m.compose(V(c.x + x + 0.4 * Math.sin(tt * 3 + a), c.y + y, c.z + z), _q.setFromEuler(new THREE.Euler(0.4 * Math.sin(tt * 4 + a), a + tt, 0.4 * Math.cos(tt * 3 + a))), V(1, 1, 1)); billRain.setMatrixAt(n++, _m); }
+  billRain.count = n; billRain.visible = n > 0; billRain.instanceMatrix.needsUpdate = true; }
+SETS.push(billRain);
+const _resetC2 = resetWorld;
+resetWorld = function () { _resetC2(); billRain.count = 0; };
+// ------------------------------------------------------------------ utilería compartida (tanda 3)
+const P = (o, t, t0, s = 1, dur = 0.4) => { const k = spring(prog(t, t0, t0 + dur)); o.visible = k > 0.01; o.scale.setScalar(Math.max(0.001, k) * s); return k; };
+const A = (o, x, y, z, c = DUO2) => { o.position.copy(c).add(V(x, y, z)); return o; };
+const shot = (pal, z = 7.6, ty = 1.4, y = 2.3, x = 0) => ({ ...sh(DUO2, V(x, y, z), V(x * 0.9, ty, 0)), pal });
+const splitShot = (pt, pb, z = 6.8, ty = 1.0) => ({ split: true, top: { ...half(DUO2, z, ty), pal: pt }, bot: { ...half(DUO3, z, ty), pal: pb }, pos: DUO2.clone().add(V(0, 2, 7)), tgt: DUO2.clone(), fov: 30 });
+function bud(b, x, z, s, T, o = {}, c = DUO2) { b.visible = true; b.scale.setScalar(s); A(b, x, 0.18, z, c); setBuddy(b, { hop: hopF(T, 3, 0.05), mood: 'smile', eye: 1.1, look: [0, 0.2], blink: blinkAt(T, 0.3), ...o }); return b; }
+function add(o) { scene.add(o); SETS.push(o); return o; }
+function bigT(str, color = 0xffc83a, size = 1.0) { return add(text3d(str, size, new THREE.MeshStandardMaterial({ color, roughness: 0.4 }), size * 0.28)); }
+function bottleG(color, label = 'PARFUM') { const b = makeBottle(color, label); return add(b); }
+function spin(o, T, a = 0.3, f = 1) { o.rotation.y = a * Math.sin(T * f); }
+function buddyG(color) { return add(makeBuddy(color)); }
+// granos de café
+function beanG() { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0x5a3218, roughness: 0.6 }); const b = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), m); b.scale.set(1, 0.65, 1.35); g.add(b);
+  const l = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.38), new THREE.MeshStandardMaterial({ color: 0x2a160a })); l.position.y = 0.1; g.add(l); return g; }
+// tira de papel (mouillette)
+function stripG(color = 0xffffff) { const g = new THREE.Group(); const s = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.4, 0.02), new THREE.MeshStandardMaterial({ color })); s.position.y = 0.7; g.add(s);
+  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.025), new THREE.MeshStandardMaterial({ color: 0xffd27a })); tip.position.y = 1.25; g.add(tip); return add(g); }
+// flecha
+function arrowG(color = 0xff3a4a) { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color }); const s = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.2), m); s.position.y = 0.5; g.add(s);
+  const h = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.5, 4), m); h.position.y = 1.25; h.rotation.y = Math.PI / 4; g.add(h); return add(g); }
+// sol y copo
+const sunG = add((() => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0xffd23a }); g.add(new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 16), m));
+  for (let i = 0; i < 10; i++) { const r = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 6), m); const a = i / 10 * Math.PI * 2; r.position.set(Math.cos(a) * 0.8, Math.sin(a) * 0.8, 0); r.rotation.z = a - Math.PI / 2; g.add(r); } return g; })());
+const snowG = add((() => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0xbfe6ff }); for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 0.12), m); b.rotation.z = i * Math.PI / 3; g.add(b);
+  [-1, 1].forEach(s => { const t = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.08), m); t.position.set(s * 0.42, 0, 0); t.rotation.z = s * 0.8; b.add(t); }); } return g; })());
+// cartel con texto en 3D sobre poste
+function signPost(lines, w = 1.8, h = 0.9) { const g = new THREE.Group(); const c = cartel(lines, w, h); SETS.splice(SETS.indexOf(c), 1); scene.remove(c); c.position.y = 1.6; g.add(c);
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8), new THREE.MeshStandardMaterial({ color: 0x8a5a34 })); p.position.y = 0.6; g.add(p); return add(g); }
+// moléculas estilo "bolitas"
+function moleculeG(cols = [0x3ad0a0, 0xff6fb0, 0xffd23a, 0x7ad0ff]) { const g = new THREE.Group(); const pts = [[0, 0, 0], [0.5, 0.3, 0], [-0.5, 0.25, 0.1], [0.1, -0.5, 0.2], [0.6, -0.3, -0.2]];
+  pts.forEach((p, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), new THREE.MeshStandardMaterial({ color: cols[i % cols.length] })); s.position.set(...p); g.add(s);
+    if (i) { const a = new THREE.Vector3(...pts[0]), b = new THREE.Vector3(...p); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, a.distanceTo(b), 8), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
+      l.position.copy(a.clone().add(b).multiplyScalar(0.5)); l.lookAt(b); l.rotateX(Math.PI / 2); g.add(l); } }); return add(g); }
+
+function flagG(cols, vertical) { const g = new THREE.Group(); cols.forEach((c, i) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(vertical ? 0.4 : 1.2, vertical ? 0.8 : 0.27), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+  if (vertical) p.position.x = (i - 1) * 0.4; else p.position.y = (1 - i) * 0.27; p.position.y += vertical ? 0 : 0; g.add(p); });
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.0, 8), new THREE.MeshStandardMaterial({ color: 0xc0c0c8 })); pole.position.set(vertical ? -0.65 : -0.65, -0.6, 0); g.add(pole); return add(g); }
+const gavel = add((() => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0x8a5a34 }); const h = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 14), m); h.rotation.z = Math.PI / 2; h.position.y = 0.9; g.add(h);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), m); st.position.y = 0.45; g.add(st); return g; })());
+const block = add(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.15, 20), new THREE.MeshStandardMaterial({ color: 0x6a3a1a })));
+// ================================================================== ¿POR QUÉ EL MISMO PERFUME HUELE DISTINTO EN CADA PERSONA?
+Object.assign(PALG, { e1: [0xff9ad0, 0xe0508a], e2: [0x7ad0ff, 0x3a8ae0], e3: [0xffd23a, 0xff8a3a], e4: [0xff8a5a, 0xc04a2a], e5: [0x9ae08a, 0x3aa05a], e6: [0xffb03a, 0xe0603a], e7: [0xc89aff, 0x7a4ad8], e8: [0xd0d8e0, 0x8a96a6] });
+const sameB = bottleG(0xff9ad0, 'PARFUM'), sameB2 = bottleG(0xff9ad0, 'PARFUM');
+function skinG(col) { const g = new THREE.Group(); const s = new THREE.Mesh(new RoundedBoxGeometry(2.0, 0.35, 1.2, 4, 0.15), new THREE.MeshStandardMaterial({ color: col })); s.position.y = 0.18; g.add(s); return add(g); }
+const oily = skinG(0xf2b89a), dry = skinG(0xe8c0a8);
+const oilD = Array.from({ length: 7 }, (_, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), new THREE.MeshStandardMaterial({ color: 0xffe08a, roughness: 0.05 })); m.scale.y = 0.5; m.position.set(-0.7 + i * 0.23, 0.38, (i % 2 ? 0.25 : -0.2)); oily.add(m); return m; });
+const crk = Array.from({ length: 6 }, (_, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.03), new THREE.MeshStandardMaterial({ color: 0x9a6a5a })); m.position.set(-0.6 + (i % 3) * 0.6, 0.36, -0.3 + Math.floor(i / 3) * 0.5); m.rotation.y = i * 0.9; dry.add(m); return m; });
+const vapor = Array.from({ length: 10 }, () => add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshStandardMaterial({ color: 0xff9ad0, transparent: true, opacity: 0.8 }))));
+function setVapor(T, c, speed, h, n = 10) { vapor.forEach((v, i) => { v.visible = i < n; const a = (T * speed + i / n) % 1; v.position.copy(c).add(V(-0.8 + (i * 0.37) % 1.6, 0.4 + a * h, (i % 3 - 1) * 0.3)); v.material.opacity = 0.8 * (1 - a); }); }
+const vapor2 = vapor.map(v => add(v.clone()));
+function setVapor2(T, c, speed, h, n = 10) { vapor2.forEach((v, i) => { v.visible = i < n; const a = (T * speed + i / n) % 1; v.position.copy(c).add(V(-0.8 + (i * 0.37) % 1.6, 0.4 + a * h, (i % 3 - 1) * 0.3)); }); }
+const garlic = add((() => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0xf6f0e0 }); for (let i = 0; i < 6; i++) { const c = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), m); const a = i / 6 * Math.PI * 2; c.position.set(Math.cos(a) * 0.15, 0.25, Math.sin(a) * 0.15); c.scale.y = 1.3; g.add(c); }
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 8), m); tip.position.y = 0.6; g.add(tip); return g; })());
+const chili = add((() => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.8, 12), new THREE.MeshStandardMaterial({ color: 0xdd2a2a })); c.rotation.z = Math.PI / 2 + 0.3; c.position.y = 0.2; g.add(c);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0x3a9a4a })); st.position.set(-0.42, 0.33, 0); st.rotation.z = 1.2; g.add(st); return g; })());
+const creamJar = add((() => { const g = new THREE.Group(); const j = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.45, 24), new THREE.MeshStandardMaterial({ color: 0xffffff })); j.position.y = 0.22; g.add(j);
+  const l = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.15, 24), new THREE.MeshStandardMaterial({ color: 0x7ad0ff })); l.position.y = 0.52; g.add(l); return g; })());
+const soapB = add(new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.3, 0.45, 3, 0.12), new THREE.MeshStandardMaterial({ color: 0x9ae0ff })));
+const dna = add((() => { const g = new THREE.Group(); for (let i = 0; i < 14; i++) { const a = i * 0.6, y = i * 0.15; [0, Math.PI].forEach((o, k) => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshStandardMaterial({ color: k ? 0xff6fb0 : 0x7ad0ff })); s.position.set(Math.cos(a + o) * 0.35, y, Math.sin(a + o) * 0.35); g.add(s); });
+  const r = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0xdddddd })); r.position.y = y; r.rotation.z = Math.PI / 2; r.rotation.y = -a; g.add(r); } return g; })());
+const muskMol = moleculeG([0xffffff, 0xffe0f0, 0xe0f0ff]);
+const tagGym = cartel(['GYM'], 1.0, 0.5), tagHoras = cartel(['ESPERA', 'UNAS HORAS']);
 const SCENES = {
   gancho(t, d, cue, T) {
-    lightAt(BU);
-    const tw = cue.wow ?? 0.8, tc = cue.compra ?? 2, tj = cue.jarabe ?? 3;
-    // tu amigo/a huele increíble: rocío y corazones
-    pal.position.copy(BU).add(V(-1.25, 0, 0));
-    setBuddy(pal, { hop: hopF(T, 3, 0.06), mood: t > tj ? 'o' : 'smile', mouthOpen: 1.3, look: [0.6, 0], blink: blinkAt(T, 0.3), armR: t < tc ? 0.9 : 0.2, rotY: 0.3, squash: t > tj ? 0.08 * Math.sin(T * 20) : 0 });
-    palBottle.visible = t < tc;
-    if (t < tc) setMist(t, pal.userData.hand.localToWorld(V(0, 0.55, 0)), V(0.6, 0.6, 0.4).normalize(), tw - 0.6, [1, 0.6, 0.9]);
-    // tú: hueles, te enamoras, lo compras... y huele a jarabe
-    const run = easeIO(prog(t, tc - 0.2, tc + 0.4));
-    const jump = t > tj ? spring(prog(t, tj, tj + 0.5)) : 0;
-    you.position.copy(BU).add(V(lerp(1.25, 0.9, run) + 0.5 * jump, 0, 0));
-    setBuddy(you, {
-      hop: (t > tc && t < tc + 0.6 ? 0.5 * Math.sin(prog(t, tc, tc + 0.6) * Math.PI) : 0) + hopF(T, 3, 0.05) + 0.4 * Math.sin(clamp((t - tj) / 0.35) * Math.PI),
-      mood: t > tj ? 'frown' : t > tw ? 'o' : 'smile', eye: t > tj ? 0.7 : t > tw && t < tc ? 1.45 : 1, look: [t < tc ? -0.7 : 0, 0],
-      blink: t > tj ? 0.35 : blinkAt(T, 0.7), brow: t > tj ? -1 : t > tw ? 0.6 : 0, armR: t > tc ? 1.1 : 0, rotY: -0.3, squash: t > tj ? 0.15 * Math.exp(-(t - tj) * 4) : 0,
-    });
-    youBottle.visible = t > tc - 0.1;
-    if (t > tc && t < tj) setMist(t, you.userData.hand.localToWorld(V(0, 0.55, 0)), V(0.2, 0.7, 0.5).normalize(), tc + 0.1, [1, 0.6, 0.9]);
-    setHearts(t, you.position.clone().add(V(0.3, 2.0, 0.3)), tw, t > tj ? 0 : 6, 0.9);
-    setStink(t, you.position.clone().add(V(0.2, 0.7, -0.6)), tj, 0.95);
-    syrup.visible = t > tj;
-    if (syrup.visible) { const p = prog(t, tj + 0.1, tj + 0.7); syrup.position.copy(you.position).add(V(-1.05, 1.35 + 0.1 * Math.sin(T * 3), 0.6)); syrup.scale.setScalar(Math.max(0.001, spring(p)) * 0.7); syrup.rotation.set(0, T * 1.5, 0.25 * Math.sin(T * 6)); }
-    sparks.visible = true; setSparks(T, BU.clone().add(V(0, 2, 0)), 2.6, 3, 0xffb0e0, 0.6);
-    const p = easeIO(prog(t, tj - 0.3, tj + 0.4));
-    return { pos: lerpV(BU.clone().add(V(0, 2.3, 10.2)), BU.clone().add(V(0.9, 2.2, 8.2)), p), tgt: lerpV(BU.clone().add(V(0, 1.5, 0)), BU.clone().add(V(1.0, 1.5, 0)), p), fov: 40 };
+    const ta = cue.amigo ?? d * 0.2, tt = cue.ti ?? d * 0.75;
+    if (t < ta) { ped(DUO2); sameB.visible = true; sameB.scale.setScalar(0.5); A(sameB, 0, 0.18, 0); spin(sameB, T); return shot('e1', 7.0, 1.2); }
+    ped(DUO2); ped(DUO3, true);
+    bud(pal, -0.4, 0.3, 0.55, T, { look: [0.6, 0.3], rotY: 0.3, armR: 2.0 }); sameB.visible = true; sameB.scale.setScalar(0.32); A(sameB, 0.6, 0.18, 0); setHearts(t, DUO2.clone().add(V(-0.4, 1.4, 0.3)), ta, 3, 0.4);
+    bud(you, -0.4, 0.3, 0.55, T, { look: [0.6, 0.0], rotY: 0.3, mood: t > tt ? 'frown' : 'smile', eye: t > tt ? 0.6 : 1.0, brow: t > tt ? 0.8 : 0 }, DUO3); sameB2.visible = true; sameB2.scale.setScalar(0.32); A(sameB2, 0.6, 0.18, 0, DUO3);
+    if (t > tt) { qMark.visible = true; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tt, tt + 0.4))) * 0.35); A(qMark, -0.4, 1.4, 0.3, DUO3); qMark.rotation.y = 0.3 * Math.sin(T * 3); }
+    return splitShot('e5', 'e4', 7.6, 0.8);
   },
-  noeres(t, d, cue, T) {
-    lightAt(BU);
-    const tq = cue.quim ?? d * 0.6, tm = cue.mal ?? d * 0.3;
-    you.position.copy(BU).add(V(-0.9, 0, 0));
-    setBuddy(you, { hop: hopF(T, 2.5, 0.05), mood: t > tq ? 'smile' : 'o', mouthOpen: 0.8, look: [0.7, -0.2], eye: t > tq ? 1.2 : 1, blink: blinkAt(T, 0.2), brow: t < tq ? 0.5 : 0, armL: t > tq ? 1.4 : 0, rotY: 0.35 });
-    flask.visible = true; flask.position.copy(BU).add(V(1.0, 0, 0.3)); flask.scale.setScalar(1.25 * (1 + 0.15 * spring(prog(t, tq, tq + 0.5)) * Math.exp(-(t - tq) * 2)));
-    flask.userData.liq.material.color.setHSL((0.45 + (t > tq ? (T * 0.2) % 1 : 0)) % 1, 1, 0.55);
-    bubbles.forEach((b, i) => { const a = (T * (0.5 + (i % 4) * 0.15) + i / 14) % 1; b.visible = true; b.position.copy(flask.position).add(V(Math.sin(i * 2.3) * 0.25 * (1 - a), 0.6 + a * 2.6 * (t > tq ? 1.4 : 1), Math.cos(i * 1.7) * 0.25)); b.scale.setScalar(1 - a * 0.5); });
-    setMolecules(t, BU.clone().add(V(-0.9, 0, 0)), 0.05, tipo => tipo === 'salida' ? { show: true } : null);
-    mol.count = Math.min(mol.count, 0);
-    sparks.visible = true; setSparks(T, BU.clone().add(V(0, 2, 0)), 2.4, 3, 0x3affc8, t > tq ? 1 : 0.4);
-    glow.position.copy(BU).add(V(1, 2.5, 2.5)); glow.color.set(0x3affc8); glow.intensity = t > tq ? 9 : 4;
-    const p = easeIO(t / d);
-    return { pos: lerpV(BU.clone().add(V(-0.5, 2.3, 8.0)), BU.clone().add(V(0.3, 2.2, 7.0)), p), tgt: BU.clone().add(V(0, 1.6, 0)), fov: 40 };
+  piel(t, d, cue, T) {
+    const tg = cue.grasa ?? d * 0.3, ts = cue.seca ?? d * 0.75;
+    if (t < tg) { ped(DUO2); bud(you, 0, 0.3, 0.6, T, { look: [0, 0.2], armL: 1.2 }); return shot('e1', 7.0, 1.2); }
+    ped(DUO2); ped(DUO3, true);
+    oily.visible = true; oily.scale.setScalar(0.8); A(oily, 0, 0.18, 0); setVapor(T, DUO2.clone().add(V(0, 0.18, 0)), 0.3, 0.7, 8);
+    dry.visible = true; dry.scale.setScalar(0.8); A(dry, 0, 0.18, 0, DUO3); if (t > ts - 0.3) setVapor2(T, DUO3.clone().add(V(0, 0.18, 0)), 1.0, 1.6, 8);
+    return splitShot('e3', 'e8', 6.6, 0.6);
   },
-  cocina(t, d, cue, T) {
-    lightAt(PANS);
-    const tr = cue.receta ?? 0.8, tk = cue.cocina ?? 2, td = cue.dif ?? d * 0.8;
-    pans.forEach((p, i) => { p.visible = true; p.rotation.y = i ? Math.PI : 0; });
-    pans[0].position.set(PANS.x - 1.2, 0, PANS.z - 0.4); pans[1].position.set(PANS.x + 1.2, 0, PANS.z + 0.4);
-    // la "receta" (frasco) vuela sobre las sartenes y suelta una gota en cada una
-    hero.visible = true; hero.scale.setScalar(0.42);
-    hero.position.set(PANS.x + lerp(-1.2, 1.2, easeIO(prog(t, tk, td - 0.3))), 2.3 + 0.1 * Math.sin(T * 3), PANS.z);
-    hero.rotation.set(0, T * 0.6, Math.PI * 0.85 * spring(prog(t, tr, tr + 0.5)));
-    drops.forEach((m, i) => {
-      const t0 = i ? (tk + td) / 2 : tk; const a = t - t0;
-      m.visible = a > 0 && a < 0.5;
-      m.position.set(pans[i].position.x, 2.2 - 1.9 * clamp(a / 0.5) ** 2, pans[i].position.z);
-    });
-    setPuff(puffs[0], t, tk + 0.5, pans[0].position.clone().add(V(0, 0.3, 0)));
-    setPuff(puffs[1], t, (tk + td) / 2 + 0.5, pans[1].position.clone().add(V(0, 0.3, 0)));
-    setHearts(t, pans[0].position.clone().add(V(0, 0.9, 0)), td, 4, 0.6);
-    if (t > td) setStink(t, pans[1].position.clone().add(V(0, 1.0, 0)), td, 0.45);
-    sparks.visible = true; setSparks(T, PANS.clone().add(V(0, 1.5, 0)), 2.6, 2.5, 0xffc070, 0.6);
-    glow.position.copy(PANS).add(V(0, 3, 3)); glow.color.set(0xffc070); glow.intensity = 6;
-    const p = easeIO(t / d);
-    return { pos: lerpV(PANS.clone().add(V(0, 4.4, 9.6)), PANS.clone().add(V(0.3, 4.0, 8.6)), p), tgt: PANS.clone().add(V(0, 1.0, 0)), fov: 40 };
-  },
-  grasa(t, d, cue, T) {
-    lightAt(DUO);
-    const tg = cue.grasa ?? 0.3, ts = cue.seca ?? d * 0.45, tp = cue.plant ?? d * 0.85;
-    duoSkins.forEach(m => (m.visible = true)); oilDrops.forEach(m => (m.visible = true)); cracks.forEach(m => (m.visible = true));
-    // moléculas: en la grasosa se quedan pegadas; en la seca salen volando
-    let n = 0;
-    for (let i = 0; i < 60; i++) {
-      const [a0, rr, sp, ph] = molBSeed[i], left = i < 30;
-      const cx = DUO.x + (left ? -1.6 : 1.6);
-      const app = prog(t, (left ? tg : ts) - 0.4 + sp * 0.4, (left ? tg : ts) + sp * 0.4);
-      if (app <= 0) continue;
-      let y = 0.45 + 0.04 * Math.sin(T * 3 + ph), s = 0.11 * easeOut(app), x = cx + Math.cos(a0) * rr, z = DUO.z + Math.sin(a0) * rr;
-      if (!left) { const a = t - (ts + 0.5 + sp * 0.6); if (a > 0) { const p = a / 1.2; if (p >= 1) continue; y += 4 * p * p; x += 0.4 * Math.sin(a * 6 + ph); s *= 1 - p * 0.7; } }
-      _m.compose(V(x, y, z), _q.identity(), V(s, s, s)); molB.setMatrixAt(n++, _m);
-    }
-    molB.count = n; molB.instanceMatrix.needsUpdate = true; molB.visible = true;
-    dryFace.visible = t > tp - 0.1; dryFace.scale.setScalar(Math.max(0.001, spring(prog(t, tp - 0.1, tp + 0.4))));
-    glow.position.copy(DUO).add(V(-1.6, 2, 2)); glow.color.set(0xfff0a0); glow.intensity = 5;
-    const p = easeIO(t / d);
-    const fx = t < ts - 0.3 ? -1.0 : t < tp - 0.3 ? 1.0 : 1.3;
-    const cx = lerp(-1.0, fx, easeIO(prog(t, ts - 0.6, ts + 0.1)));
-    return { pos: V(DUO.x + cx * 0.7, 3.6, DUO.z + 6.2 - 0.6 * p), tgt: V(DUO.x + cx, 0.5, DUO.z), fov: 40 };
-  },
-  calor(t, d, cue, T) {
-    const tg = cue.grita ?? d * 0.6, tsu = cue.susurra ?? d * 0.85;
-    const inv = t >= tsu + 0.12;
-    if (!inv) {
-      lightAt(GYM);
-      you.position.copy(GYM);
-      you.userData.body.add(headband); headband.visible = true;
-      you.userData.hand.add(dumbbell); dumbbell.visible = true; dumbbell.position.set(0, -0.05, 0.05);
-      const lift = 0.5 + 0.5 * Math.sin(T * 6);
-      setBuddy(you, { hop: hopF(T, 6, 0.06), mood: 'o', mouthOpen: 0.9 + 0.3 * lift, eye: 1, blink: blinkAt(T, 0.4), brow: -0.6, armR: 0.3 + 1.6 * lift, rotY: 0.25, squash: 0.05 * lift });
-      thermo.visible = true; thermo.position.copy(GYM).add(V(1.9, 0, -0.3)); thermo.userData.fill.scale.y = lerp(0.3, 2.3, easeOut(prog(t, cue.calor ?? 0.3, (cue.calor ?? 0.3) + 1.5)));
-      thermo.userData.bulb.material.color.set(0xff2a3a);
-      sweat.forEach((s, i) => { const a = (T * 0.9 + i / 6) % 1; s.visible = true; s.position.copy(GYM).add(V(Math.sin(i * 2.1) * 0.7, 2.1 - a * 1.6, 0.6 + Math.cos(i) * 0.15)); });
-      const loud = t > tg ? 1 : 0.5;
-      setWaves(T, GYM.clone().add(V(0, 1.3, 0)), t > tg ? 1.4 : 0.8, t > tg ? 4.5 : 2.5, 0xff6fd8, loud);
-      glow.position.copy(GYM).add(V(0, 2.5, 2.5)); glow.color.set(0xff8a3a); glow.intensity = 8;
-      const p = easeIO(prog(t, 0, tsu));
-      const punch = t > tg ? 1 - 0.18 * Math.exp(-(t - tg) * 5) : 1;
-      return { pos: lerpV(GYM.clone().add(V(-0.4, 2.4, 9.0 * punch)), GYM.clone().add(V(0.4, 2.3, 8.0 * punch)), p), tgt: GYM.clone().add(V(0.3, 1.5, 0)), fov: 40 };
-    }
-    lightAt(WIN);
-    you.position.copy(WIN);
-    you.userData.body.add(scarf); scarf.visible = true;
-    setBuddy(you, { hop: 0, shake: T, mood: 'frown', eye: 0.9, blink: blinkAt(T, 0.1), brow: 0.8, armR: -0.2, armL: -0.2, rotY: -0.15 });
-    thermo.visible = true; thermo.position.copy(WIN).add(V(1.9, 0, -0.3)); thermo.userData.fill.scale.y = 0.25; thermo.userData.bulb.material.color.set(0x3aa0ff);
-    setWaves(T, WIN.clone().add(V(0, 1.3, 0)), 0.35, 1.2, 0xbfe6ff, 0.25);
-    snowPts.visible = true;
-    { const P = snowGeo.attributes.position; for (let i = 0; i < SNOWN; i++) { const [x, y, z, ph] = snowSeed[i]; P.setXYZ(i, WIN.x + x + 0.3 * Math.sin(T + ph), ((y - T * 0.8) % 7 + 7) % 7, WIN.z + z); } P.needsUpdate = true; }
-    glow.position.copy(WIN).add(V(0, 2.5, 2.5)); glow.color.set(0xbfe6ff); glow.intensity = 4;
-    return { pos: WIN.clone().add(V(0.2, 2.2, 7.4)), tgt: WIN.clone().add(V(0.3, 1.5, 0)), fov: 40, pal: 'invierno' };
+  temp(t, d, cue, T) {
+    const tt = cue.temperatura ?? d * 0.15, te = cue.evapora ?? d * 0.35, tf = cue.fuerte ?? d * 0.5, tg = cue.gym ?? d * 0.82;
+    ped(DUO2);
+    bud(you, -0.5, 0.3, 0.6, T, { look: [0.4, 0.2], rotY: 0.3, mood: 'smile', armR: t > tg - 0.3 ? 2.4 + 0.4 * Math.sin(T * 8) : 0.6 });
+    thermo.visible = true; thermo.scale.setScalar(0.55); A(thermo, 0.85, 0.18, 0.2); thermo.userData.fill.scale.y = 0.6 + 1.6 * easeOut(prog(t, tt, tt + 1.2));
+    if (t > te - 0.2) setVapor(T, DUO2.clone().add(V(-0.5, 0.9, 0.4)), 0.9, 1.4, 10);
+    if (t > tg - 0.3) { you.userData.hand.add(dumbbell); dumbbell.visible = true; P(tagGym, t, tg - 0.3, 0.6); A(tagGym, 0.8, 2.1, 0.4);
+      sweat.forEach((s, i) => { s.visible = true; const a = (T * 1.5 + i / 6) % 1; A(s, -0.9 + i * 0.15, 1.5 - a * 0.8, 0.6); }); }
+    return shot('e4', 7.2, 1.3);
   },
   bacterias(t, d, cue, T) {
-    lightAt(BAC);
-    bacSurf.visible = true;
-    const tb = cue.bact ?? 0.6, tm = cue.mezcla ?? d * 0.75;
-    bugs.forEach((g, i) => {
-      const p = spring(prog(t, tb - 0.3 + i * 0.12, tb + 0.3 + i * 0.12));
-      g.visible = p > 0.01; g.scale.setScalar(Math.max(0.001, p));
-      const a = i * 0.9 + T * (0.3 + (i % 3) * 0.1), r = 1.0 + (i % 3) * 0.7;
-      g.position.set(BAC.x + Math.cos(a) * r, 0.55 + Math.abs(Math.sin(T * 4 + i)) * 0.25, BAC.z + Math.sin(a) * r * 0.7);
-      g.rotation.set(0, -a + Math.PI / 2, 0.15 * Math.sin(T * 6 + i));
-    });
-    // gotas de perfume que caen y se mezclan con las bacterias
-    setMolecules(t, BAC, 0.3, tipo => tipo === 'corazon' ? { show: true, drop: tm - 0.6 } : null);
-    sparks.visible = true; setSparks(T, BAC.clone().add(V(0, 1.0, 0)), 2.2, 1.5, t > tm ? 0xffd0ff : 0x9affc8, t > tm ? 1 : 0.5);
-    glow.position.copy(BAC).add(V(0, 2.5, 2)); glow.color.set(t > tm ? 0xff9ad0 : 0x9affc8); glow.intensity = 8;
-    const p = easeIO(t / d);
-    return { pos: lerpV(BAC.clone().add(V(0, 6.2, 8.0)), BAC.clone().add(V(0.4, 5.2, 6.8)), p), tgt: BAC.clone().add(V(0, 0.4, 0)), fov: 40 };
+    const tv = cue.vive ?? d * 0.2, tb = cue.bacterias ?? d * 0.5, tm = cue.mezclan ?? d * 0.8;
+    ped(DUO2);
+    oily.visible = true; oily.scale.setScalar(1.0); A(oily, 0, 0.18, 0);
+    bugs.forEach((b, i) => { if (t > tv - 0.3 + i * 0.12) { b.visible = true; b.scale.setScalar(0.35); const a = T * 0.8 + i * 0.9; A(b, Math.cos(a) * 0.8, 0.62 + 0.05 * Math.abs(Math.sin(T * 6 + i)), Math.sin(a) * 0.45); b.rotation.y = -a; } });
+    if (t > tm - 0.3) { sameB.visible = true; sameB.scale.setScalar(0.3); A(sameB, 0.9, 1.4, 0.2); sameB.rotation.z = 0.9; setMist(t, DUO2.clone().add(V(0.6, 1.4, 0.2)), V(-0.6, -1, 0).normalize(), tm - 0.3, [1, 0.6, 0.85]); }
+    return shot('e5', 6.6, 0.9, 2.2);
+  },
+  comida(t, d, cue, T) {
+    const tj = cue.jabon ?? d * 0.25, tc = cue.comes ?? d * 0.5, ta = cue.ajo ?? d * 0.7;
+    ped(DUO2);
+    if (t < tc - 0.3) { P(creamJar, t, 0.15, 0.85); A(creamJar, -0.55, 0.18, 0.2); P(soapB, t, tj - 0.2, 1.0); A(soapB, 0.6, 0.35, 0.2); soapB.rotation.y = 0.3 * Math.sin(T); return shot('e2', 6.8, 1.0); }
+    P(garlic, t, tc - 0.3, 1.0); A(garlic, -0.6, 0.18, 0.2); garlic.rotation.y = T * 0.5;
+    P(chili, t, tc - 0.1, 1.0); A(chili, 0.1, 0.18, 0.6); chili.rotation.y = T * 0.4;
+    if (t > ta - 0.3) { bud(you, 0.75, 0.2, 0.5, T, { mood: 'o', mouthOpen: 0.7, look: [-0.8, 0], rotY: -0.5, eye: 1.2 }); sweat.forEach((s, i) => { s.visible = i < 3; const a = (T * 1.5 + i / 3) % 1; A(s, 0.5 + i * 0.2, 1.4 - a * 0.7, 0.6); });
+      setStink(t, DUO2.clone().add(V(0.75, 1.3, 0.3)), ta - 0.3, 0.35); }
+    return shot('e6', 7.0, 1.1);
   },
   nariz(t, d, cue, T) {
-    lightAt(NOSE);
-    const tn = cue.noole ?? d * 0.75;
-    you.position.copy(NOSE); you.scale.setScalar(2.0); you.userData.nose.visible = true;
-    const sniff = 0.5 + 0.5 * Math.sin(T * 9);
-    setBuddy(you, { hop: 0, mood: t > tn ? 'frown' : 'smile', eye: t > tn ? 1.15 : 1, look: [t > tn ? 0.5 : 0, t > tn ? 0.4 : -0.5], blink: blinkAt(T, 0.3), brow: t > tn ? 0.9 : 0, rotY: 0.1 * Math.sin(T * 0.8), squash: t < tn ? 0.02 * sniff : 0 });
-    you.userData.nose.scale.setScalar(1 + (t < tn ? 0.08 * sniff : 0));
-    const nosePos = NOSE.clone().add(V(0, 2.96, 1.6));
-    scentShapes.forEach((m, i) => {
-      m.visible = true;
-      const t0 = i < 2 ? 0.3 + i * 0.55 : tn - 0.7, a = t - t0;
-      const start = NOSE.clone().add(V(i === 2 ? 0.2 : (i ? 1.6 : -1.6), 1.6, 4.2));
-      if (a < 0) { m.scale.setScalar(0.001); m.position.copy(start); return; }
-      if (i < 2) { const p = clamp(a / 1.0); m.position.copy(start).lerp(nosePos, easeIO(p)); m.scale.setScalar(Math.max(0.001, 1 - easeIO(clamp((a - 0.8) / 0.3)))); }
-      else { const p = clamp(a / 0.7), back = clamp((a - 0.7) / 0.8);
-        m.position.copy(start).lerp(nosePos.clone().add(V(0, 0, 0.3)), easeIO(p)); m.position.add(V(1.4 * back, 1.0 * Math.sin(back * Math.PI), 1.6 * back)); m.scale.setScalar(1); }
-      m.rotation.set(T * 2 + i, T * 1.5, 0);
-    });
-    qMark.visible = t > tn; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tn, tn + 0.5)) * 0.8)); qMark.position.copy(NOSE).add(V(1.9, 3.4 + 0.1 * Math.sin(T * 3), 0.8)); qMark.rotation.y = 0.3 * Math.sin(T * 2);
-    sparks.visible = true; setSparks(T, NOSE.clone().add(V(0, 2.6, 0.8)), 2.4, 2.5, 0xd8a0ff, 0.6);
-    glow.position.copy(NOSE).add(V(0, 3, 4)); glow.color.set(0xd8a0ff); glow.intensity = 6;
-    const p = easeIO(t / d);
-    return { pos: lerpV(NOSE.clone().add(V(-0.8, 3.0, 11.4)), NOSE.clone().add(V(0.5, 3.0, 10.2)), p), tgt: NOSE.clone().add(V(0, 2.2, 0)), fov: 40 };
+    const tn = cue.nariz ?? d * 0.3, tg = cue.genetica ?? d * 0.6, ta = cue.almizcles ?? d * 0.85;
+    ped(DUO2);
+    if (t < tg - 0.3) {
+      bud(you, -0.6, 0.3, 0.55, T, { look: [0.6, 0.1], rotY: 0.4 }); sameB.visible = true; sameB.scale.setScalar(0.25); you.userData.hand.add(youBottle); youBottle.visible = true;
+      if (t > tn - 0.3) { bud(pal, 0.6, 0.3, 0.55, T, { look: [-0.6, 0.1], rotY: -0.4, eye: 0.5, blink: 0.4 }); pal.userData.nose.visible = true; pal.userData.nose.scale.setScalar(1 + 0.5 * spring(prog(t, tn, tn + 0.4))); }
+      return shot('e7', 7.2, 1.3);
+    }
+    P(dna, t, tg - 0.3, 0.9); A(dna, -0.6, 0.3, 0); dna.rotation.y = T;
+    if (t > ta - 0.4) { P(muskMol, t, ta - 0.4, 0.55); A(muskMol, 0.7, 1.5, 0.3); muskMol.rotation.y = T;
+      bud(pal, 0.7, 0.4, 0.45, T, { look: [0, 0.6], eye: 1.2, mood: 'o', mouthOpen: 0.6, blink: 1 }); pal.userData.nose.visible = true;
+      qMark.visible = true; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, ta, ta + 0.4))) * 0.35); A(qMark, 1.1, 1.9, 0.4); qMark.rotation.y = 0.3 * Math.sin(T * 3); }
+    return shot('e7', 7.2, 1.2);
   },
-  fatiga(t, d, cue, T) {
-    lightAt(BU);
-    const ta = cue.acost ?? d * 0.3, to = cue.otros ?? d * 0.75;
-    you.position.copy(BU).add(V(-0.4, 0, 0));
-    const sleepy = easeIO(prog(t, ta, ta + 1.2));
-    setBuddy(you, { hop: hopF(T, 2, 0.04), mood: sleepy > 0.5 ? 'frown' : 'smile', blink: lerp(1, 0.25, sleepy) * (sleepy > 0.5 ? 1 : blinkAt(T, 0.5)), look: [0, -0.6 * (1 - sleepy)], rotY: 0.15 });
-    setWaves(T, you.position.clone().add(V(0, 1.3, 0)), 0.8, 2.0, 0xff6fd8, 0.8);
-    meter.visible = true; meter.position.copy(BU).add(V(1.3, 0, -0.3));
-    const lvl = lerp(1, 0.12, sleepy); meter.userData.fill.scale.y = Math.max(0.02, 2.4 * lvl);
-    meter.userData.fill.material.color.setHSL(0.33 * lvl, 1, 0.55); meter.userData.fill.material.emissive.setHSL(0.33 * lvl, 1, 0.3);
-    zzz.visible = sleepy > 0.6; zzz.position.copy(you.position).add(V(0.5, 2.6 + 0.1 * Math.sin(T * 2), 0)); zzz.rotation.z = 0.2;
-    // tu amigo/a llega y te huele feliz
-    const pa = easeOut(prog(t, to - 0.6, to));
-    pal.position.copy(BU).add(V(lerp(-4, -2.0, pa), 0, 0.3));
-    setBuddy(pal, { hop: hopF(T, 3, 0.08), mood: 'o', mouthOpen: 1.2, eye: t > to ? 1.4 : 1, look: [0.8, 0], blink: blinkAt(T, 0.2), rotY: 0.5 });
-    setHearts(t, pal.position.clone().add(V(0, 2.4, 0)), to, 5, 0.8);
-    const p = easeIO(t / d);
-    return { pos: lerpV(BU.clone().add(V(0.0, 2.3, 10.4)), BU.clone().add(V(-0.5, 2.2, 9.8)), p), tgt: BU.clone().add(V(-0.4, 1.4, 0)), fov: 40 };
+  crema(t, d, cue, T) {
+    const ts = cue.seca2 ?? d * 0.25, tc = cue.crema ?? d * 0.45, tg = cue.agarra ?? d * 0.7, tdu = cue.dura ?? d * 0.88;
+    ped(DUO2);
+    dry.visible = true; dry.scale.setScalar(0.85); A(dry, 0, 0.18, 0.3); crk.forEach(c => c.visible = t < tc + 0.3);
+    if (t > tc - 0.3) { P(creamJar, t, tc - 0.3, 0.6); A(creamJar, -0.75, 0.55, -0.1); }
+    if (t > tg - 0.3) { setVapor(T, DUO2.clone().add(V(0, 0.4, 0.3)), 0.25, 0.9, 8); }
+    if (t > tdu - 0.2) { clock.visible = true; clock.scale.setScalar(0.4); A(clock, 0.7, 1.9, 0.2); clock.userData.hand.rotation.z = -T * 3; check.visible = true; check.scale.setScalar(0.3); A(check, -0.2, 1.9, 0.4); }
+    return shot('e2', 6.8, 0.9, 2.1);
   },
   consejo(t, d, cue, T) {
-    lightAt(SKIN);
-    skin.visible = skinRing.visible = clock.visible = true;
-    const tp = cue.prueba ?? d * 0.45, te = cue.espera ?? d * 0.65, tdc = cue.decide ?? d * 0.85;
-    hero.visible = true; hero.scale.setScalar(0.6); hero.position.copy(SKIN).add(V(1.9, 0.4, 0.4)); hero.rotation.set(0, -0.6, 0);
-    setMist(t, hero.localToWorld(V(0, 2.5, 0)), V(-1, -0.25, -0.1).normalize(), tp, [1, 0.7, 0.95]);
-    setMolecules(t, SKIN, 0.4, tipo => ({ show: t > tp + 0.3, drop: tp + 0.2 }));
-    clock.position.copy(SKIN).add(V(-1.6, 1.7, -1.4)); clock.scale.setScalar(0.7);
-    clock.userData.hand.rotation.z = -Math.PI * 2 * 1.5 * easeIO(prog(t, te, tdc));
-    check.visible = t > tdc; check.scale.setScalar(Math.max(0.001, spring(prog(t, tdc, tdc + 0.5))) * 1.3); check.position.copy(SKIN).add(V(0.9, 1.9, 0.8)); check.rotation.y = 0.3 * Math.sin(T * 2);
-    you.position.copy(SKIN).add(V(-2.6, 0, 1.0));
-    setBuddy(you, { hop: hopF(T, 3, 0.06) + (t > tdc ? 0.3 * Math.abs(Math.sin((t - tdc) * 8)) * Math.exp(-(t - tdc) * 2) : 0), mood: t > tdc ? 'o' : 'smile', eye: t > tdc ? 1.3 : 1, look: [0.8, -0.3], blink: blinkAt(T, 0.6), armR: t > tdc ? 2.4 : 0.2, rotY: 0.6 });
-    sparks.visible = true; setSparks(T, SKIN.clone().add(V(0, 1.2, 0)), 2.5, 2, 0x9affb0, t > tdc ? 1 : 0.5);
-    glow.position.copy(SKIN).add(V(0, 2.5, 2.5)); glow.color.set(0x9affb0); glow.intensity = 6;
-    const p = easeIO(t / d);
-    return { pos: lerpV(SKIN.clone().add(V(-0.6, 4.2, 9.4)), SKIN.clone().add(V(-0.2, 3.8, 8.4)), p), tgt: SKIN.clone().add(V(-0.3, 1.3, 0)), fov: 40 };
+    const to = cue.otro ?? d * 0.4, th = cue.horas ?? d * 0.85;
+    ped(DUO2);
+    if (t < to + 0.2) { bud(pal, -0.6, 0.3, 0.55, T, { look: [0.6, 0.1], rotY: 0.4 }); setHearts(t, DUO2.clone().add(V(-0.6, 1.5, 0.3)), 0.2, 3, 0.4);
+      bud(you, 0.6, 0.3, 0.55, T, { look: [-0.6, 0.1], rotY: -0.4, mood: 'o', mouthOpen: 0.6 }); if (t > to - 0.3) { xMark.visible = true; xMark.scale.setScalar(0.35); A(xMark, 0, 1.6, 0.6); } return shot('e8', 7.2, 1.2); }
+    bud(you, -0.3, 0.3, 0.6, T, { look: [0.4, -0.3], rotY: 0.3, eye: 0.6, blink: 0.4, armR: 1.4 }); you.userData.nose.visible = true;
+    sameB.visible = true; sameB.scale.setScalar(0.3); A(sameB, 0.85, 0.18, 0.3);
+    if (t > th - 0.4) { P(tagHoras, t, th - 0.4, 0.7); A(tagHoras, 0.5, 2.1, 0.4); clock.visible = true; clock.scale.setScalar(0.35); A(clock, -0.8, 2.0, 0.3); clock.userData.hand.rotation.z = -T * 4; }
+    return shot('e5', 7.2, 1.2);
   },
   final(t, d, cue, T) {
-    lightAt(BU);
-    const tn = cue.noera ?? d * 0.35, tt = cue.trai ?? d * 0.7;
-    you.position.copy(BU).add(V(0.9, 0, 0)); pal.position.copy(BU).add(V(-0.9, 0, 0));
-    const spin = t > tt ? easeOut(prog(t, tt, tt + 0.7)) * Math.PI * 2 : 0;
-    setBuddy(you, { hop: hopF(T, 3, 0.06) + (t > tt ? 0.6 * Math.sin(prog(t, tt, tt + 0.7) * Math.PI) : 0), mood: t > tn ? 'o' : 'frown', mouthOpen: 1.3, eye: t > tn ? 1.2 : 0.8, look: [-0.5, 0], blink: blinkAt(T, 0.8), brow: t > tn ? 0.4 : -0.8, rotY: -0.3 + spin, armR: t > tt ? 2.2 : 0, armL: t > tt ? 2.2 : 0 });
-    setBuddy(pal, { hop: hopF(T, 6, 0.12), mood: 'o', mouthOpen: 1.4, eye: 1.1, look: [0.6, 0], blink: blinkAt(T, 0.1), rotY: 0.35, squash: 0.06 * Math.sin(T * 18) });
-    syrup.visible = t < tn + 0.4; syrup.position.copy(BU).add(V(0.9, 2.8, 0.2)); syrup.scale.setScalar(Math.max(0.001, 0.7 * (1 - easeIO(prog(t, tn, tn + 0.4))))); syrup.rotation.set(0, T * 1.5, 0.3 * Math.sin(T * 6));
-    if (t < tn) setStink(t, you.position.clone().add(V(0, 1.2, 0.2)), -1, 0.7 * (1 - prog(t, tn - 0.3, tn)));
-    setHearts(t, BU.clone().add(V(0, 1.9, 0.4)), tt, 6, 1.4);
-    sparks.visible = true; setSparks(T, BU.clone().add(V(0, 2, 0)), 3, 3.5, 0xffb0e0, t > tt ? 1 : 0.5);
-    const a = lerp(-0.25, 0.25, easeIO(t / d));
-    return { pos: V(BU.x + Math.sin(a) * 10.2, 2.4, BU.z + Math.cos(a) * 10.2), tgt: BU.clone().add(V(0, 1.5, 0)), fov: 40 };
+    const tp = cue.pasado ?? d * 0.5;
+    ped(DUO2);
+    bud(you, -0.4, 0.3, 0.6, T, { look: [0.6, 0.1], rotY: 0.3, mood: 'o', mouthOpen: 0.6 }); youBottle.visible = true;
+    sameB.visible = true; sameB.scale.setScalar(0.38); A(sameB, 0.75, 0.18, 0.2); spin(sameB, T);
+    if (t > tp) { qMark.visible = true; qMark.scale.setScalar(Math.max(0.001, spring(prog(t, tp, tp + 0.4))) * 0.45); A(qMark, -0.4, 2.0, 0.4); qMark.rotation.y = 0.3 * Math.sin(T * 3); }
+    return shot('e1', 7.0, 1.2);
   },
 };
+const _resetE = resetWorld;
+resetWorld = function () { _resetE(); pal.userData.nose.scale.setScalar(1); pal.userData.nose.visible = false; crk.forEach(c => c.visible = true); };
+// ------------------------------------------------------------------ convertir todo a sombreado de cómic (toon) con contorno negro
+const gradientMap = (() => { const d = new Uint8Array([90, 175, 255]); const tx = new THREE.DataTexture(d, 3, 1, THREE.RedFormat); tx.minFilter = tx.magFilter = THREE.NearestFilter; tx.needsUpdate = true; return tx; })();
+const toonCache = new Map();
+function toToon(m) {
+  if (!m || m.isMeshBasicMaterial || m.isShaderMaterial || m.isMeshToonMaterial) return m;
+  if (toonCache.has(m)) return toonCache.get(m);
+  const glass = (m.transmission ?? 0) > 0.3;
+  const t = new THREE.MeshToonMaterial({ color: glass ? new THREE.Color(0xeaf6ff) : m.color ? m.color.clone() : new THREE.Color(0xffffff), map: m.map || null, gradientMap,
+    transparent: glass || m.transparent, opacity: glass ? 0.5 : m.opacity, side: m.side, emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0), emissiveIntensity: Math.min(0.25, m.emissiveIntensity ?? 0) });
+  if (glass) { t.depthWrite = false; t.userData.outlineParameters = { visible: false }; }
+  // que los cambios de color por escena (líquidos) sigan funcionando: compartir el mismo objeto de color
+  if (m.color && !glass) t.color = m.color; if (m.emissive) t.emissive = m.emissive;
+  toonCache.set(m, t); return t;
+}
+scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) o.material = Array.isArray(o.material) ? o.material.map(toToon) : toToon(o.material); });
+sky.material.userData.outlineParameters = { visible: false };
+ground.material.userData.outlineParameters = { visible: false };
+scene.environmentIntensity = 0.25;
+// sin sombras proyectadas (con sombreado de cómic se veían como parches que parpadeaban):
+// en su lugar, una sombrita redonda fija bajo cada personaje, y pedestales claros con volumen
+renderer.shadowMap.enabled = false;
+scene.traverse(o => { if (o.isMesh || o.isInstancedMesh) { o.castShadow = false; o.receiveShadow = false; } });
+pedestal.material.color.set(0xffffff); pedestal.material.emissive.set(0x000000);
+ground.material.color.set(0xcdbfa8);
+// el contorno del pedestal visto casi de lado se rompía y titilaba: se cambia por un aro negro sólido en la orilla
+pedestal.material.userData.outlineParameters = { visible: false };
+const pedRingGeo = new THREE.TorusGeometry(1.6, 0.035, 10, 160); pedRingGeo.rotateX(Math.PI / 2);
+const pedRingBot = new THREE.TorusGeometry(1.75, 0.035, 10, 160); pedRingBot.rotateX(Math.PI / 2);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x111111 }); ringMat.userData.outlineParameters = { visible: false };
+[pedestal, pedestal2].forEach(pd => { const a = new THREE.Mesh(pedRingGeo, ringMat); a.position.y = 0.09; pd.add(a); const b = new THREE.Mesh(pedRingBot, ringMat); b.position.y = -0.085; pd.add(b); });
+const blobGeo = new THREE.CircleGeometry(0.7, 40); blobGeo.rotateX(-Math.PI / 2);
+const blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
+blobMat.userData.outlineParameters = { visible: false };
+const blobs = [you, pal].map(() => { const m = new THREE.Mesh(blobGeo, blobMat); m.renderOrder = 1; scene.add(m); return m; });
+function updateBlobs() { [you, pal].forEach((b, i) => { const m = blobs[i]; m.visible = b.visible;
+  if (!b.visible) return; const p = b.position; const onPed = [pedestal, pedestal2].some(pd => pd.visible && Math.hypot(p.x - pd.position.x, p.z - pd.position.z) < 1.65);
+  m.position.set(p.x, (onPed ? 0.2 : 0.02), p.z); m.scale.setScalar(b.scale.x * (1 - 0.25 * Math.min(1, (b.userData.body.position.y || 0) * 2))); }); }
+const outline = new OutlineEffect(renderer, { defaultThickness: 0.0045, defaultColor: [0, 0, 0], defaultAlpha: 1 });
 
 function segAt(t) {
   const S = timeline.segments;
   for (let i = 0; i < S.length; i++) if (t < S[i].end || i === S.length - 1) return S[i];
+}
+function applyPal(name) { const p = PALG[name] || PALG.gancho; skyMat.uniforms.top.value.set(p[0]); skyMat.uniforms.bot.value.set(p[1]); scene.fog.color.set(p[1]); }
+function place(shot, t, lt, aspect) {
+  camera.aspect = aspect;
+  camera.position.copy(shot.pos);   // sin temblor de cámara en mano: la base grande se veía vibrar
+  camera.fov = shot.fov * (1 - 0.07 * (1 - easeOut(lt / 0.45)));
+  camera.updateProjectionMatrix(); camera.lookAt(shot.tgt);
+  sky.position.copy(camera.position);
 }
 
 window.renderAt = t => {
@@ -925,27 +1275,22 @@ window.renderAt = t => {
   const lt = t - seg.start, d = seg.end - seg.start;
   const cue = {};
   for (const [k, v] of Object.entries(seg.cues || {})) cue[k] = v - seg.start;
-  const sh = SCENES[seg.scene](lt, d, cue, t);
-  const p = PALP[sh.pal || seg.scene] || PALP.gancho;
-  skyMat.uniforms.top.value.set(p[0]); skyMat.uniforms.bot.value.set(p[1]); scene.fog.color.set(p[1]);
-  bokeh.material.color.set(p[2]);
-  { const P = bokGeo.attributes.position;
-    for (let i = 0; i < BOKN; i++) { const [x, y, z, ph] = bokSeed[i];
-      P.setXYZ(i, sh.tgt.x + x + 0.5 * Math.sin(t * 0.4 + ph), y + 0.4 * Math.sin(t * 0.5 + ph * 2), sh.tgt.z + z); }
-    P.needsUpdate = true; }
-  camera.position.copy(sh.pos).add(V(Math.sin(t * 1.3) * 0.04, Math.sin(t * 1.7 + 1) * 0.03, Math.cos(t * 1.1) * 0.04));
-  camera.fov = sh.fov * (1 - 0.07 * (1 - easeOut(lt / 0.45)));
-  camera.updateProjectionMatrix();
-  camera.lookAt(sh.tgt);
-  sky.position.copy(camera.position);
-  stars.position.copy(camera.position);
-  const a = dust.geometry.attributes.position;
-  for (let i = 0; i < DUSTN; i++) {
-    const [x, y, z, ph] = dustBase[i];
-    a.setXYZ(i, sh.tgt.x + x + Math.sin(t * 0.3 + ph) * 0.6, ((y + t * 0.15) % 7), sh.tgt.z + z + Math.cos(t * 0.25 + ph) * 0.6);
+  const shot = SCENES[seg.scene](lt, d, cue, t);
+  updateBlobs();
+  renderer.toneMappingExposure = 1.15;
+  scene.fog.near = 30; scene.fog.far = 90;
+  if (shot.split) {
+    renderer.setScissorTest(true);
+    [[shot.top, H / 2], [shot.bot, 0]].forEach(([s, y]) => {
+      applyPal(s.pal); place(s, t, lt, W / (H / 2));
+      renderer.setViewport(0, y, W, H / 2); renderer.setScissor(0, y, W, H / 2);
+      outline.render(scene, camera);
+    });
+    renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+  } else {
+    applyPal(shot.pal || seg.scene); place(shot, t, lt, W / H);
+    outline.render(scene, camera);
   }
-  a.needsUpdate = true;
-  renderer.render(scene, camera);
-  return renderer.domElement.toDataURL('image/jpeg', 0.95);
+  return renderer.domElement.toDataURL('image/jpeg', 0.96);
 };
 window.ready = true;
