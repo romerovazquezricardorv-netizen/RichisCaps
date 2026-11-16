@@ -1098,6 +1098,13 @@ function moleculeG(cols = [0x3ad0a0, 0xff6fb0, 0xffd23a, 0x7ad0ff]) { const g = 
   pts.forEach((p, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), new THREE.MeshStandardMaterial({ color: cols[i % cols.length] })); s.position.set(...p); g.add(s);
     if (i) { const a = new THREE.Vector3(...pts[0]), b = new THREE.Vector3(...p); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, a.distanceTo(b), 8), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
       l.position.copy(a.clone().add(b).multiplyScalar(0.5)); l.lookAt(b); l.rotateX(Math.PI / 2); g.add(l); } }); return add(g); }
+
+function flagG(cols, vertical) { const g = new THREE.Group(); cols.forEach((c, i) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(vertical ? 0.4 : 1.2, vertical ? 0.8 : 0.27), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+  if (vertical) p.position.x = (i - 1) * 0.4; else p.position.y = (1 - i) * 0.27; p.position.y += vertical ? 0 : 0; g.add(p); });
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.0, 8), new THREE.MeshStandardMaterial({ color: 0xc0c0c8 })); pole.position.set(vertical ? -0.65 : -0.65, -0.6, 0); g.add(pole); return add(g); }
+const gavel = add((() => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0x8a5a34 }); const h = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 14), m); h.rotation.z = Math.PI / 2; h.position.y = 0.9; g.add(h);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), m); st.position.y = 0.45; g.add(st); return g; })());
+const block = add(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.15, 20), new THREE.MeshStandardMaterial({ color: 0x6a3a1a })));
 // ================================================================== EL ALMIZCLE: DEL VENADO AL LABORATORIO
 Object.assign(PALG, { a1: [0xc8a06a, 0x7a5a3a], a2: [0x9ad0ff, 0x5a8ac0], a3: [0xffd23a, 0xff8a3a], a4: [0x8a8a9a, 0x4a4a5a], a5: [0xff8a5a, 0xc04a2a], a6: [0x9ae08a, 0x3aa05a], a7: [0xc89aff, 0x7a4ad8], a8: [0x7ad0ff, 0x3a8ae0] });
 function makeDeer() { const g = new THREE.Group(); const fur = new THREE.MeshStandardMaterial({ color: 0x9a6a3a }), dark = new THREE.MeshStandardMaterial({ color: 0x15151c });
